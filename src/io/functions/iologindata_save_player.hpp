@@ -19,6 +19,7 @@ public:
 	static bool savePlayerFirst(const std::shared_ptr<Player> &player);
 	static bool savePlayerStash(const std::shared_ptr<Player> &player);
 	static bool savePlayerSpells(const std::shared_ptr<Player> &player);
+	static bool savePlayerWizardData(const std::shared_ptr<Player> &player);
 	static bool savePlayerKills(const std::shared_ptr<Player> &player);
 	static bool savePlayerBestiarySystem(const std::shared_ptr<Player> &player);
 	static bool savePlayerItem(const std::shared_ptr<Player> &player);

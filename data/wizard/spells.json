@@ -1,0 +1,34 @@
+{
+  "spells": [
+    {
+      "id": 9001,
+      "name": "Ignis",
+      "incantation": "ignis",
+      "element": "FIRE",
+      "category": "OFFENSIVE",
+      "targetType": "TILE",
+      "manaCost": 30,
+      "castTimeMs": 300,
+      "recoveryTimeMs": 2000,
+      "cooldownMs": 2500,
+      "range": 7,
+      "projectile": {
+        "visualEffect": 4,
+        "travelTimeMs": 500
+      },
+      "impactEffect": 16,
+      "minPower": 20,
+      "maxPower": 40,
+      "requiresLineOfSight": true,
+      "learnable": true,
+      "darkMagic": false,
+      "difficulty": 1,
+      "requiredKnowledge": 1,
+      "area": {
+        "pattern": "CIRCLE",
+        "minSquares": 3,
+        "maxSquares": 12
+      }
+    }
+  ]
+}

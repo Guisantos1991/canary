@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `server_config` (
     CONSTRAINT `server_config_pk` PRIMARY KEY (`config`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-INSERT INTO `server_config` (`config`, `value`) VALUES ('db_version', '58'), ('motd_hash', ''), ('motd_num', '0'), ('players_record', '0');
+INSERT INTO `server_config` (`config`, `value`) VALUES ('db_version', '59'), ('motd_hash', ''), ('motd_num', '0'), ('players_record', '0');
 
 -- Table structure `accounts`
 CREATE TABLE IF NOT EXISTS `accounts` (
@@ -785,6 +785,29 @@ CREATE TABLE IF NOT EXISTS `player_spells` (
         FOREIGN KEY (`player_id`) REFERENCES `players` (`id`)
         ON DELETE CASCADE,
     CONSTRAINT `player_spells_pk` PRIMARY KEY (`player_id`, `name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Wizard Magic Core player skills
+CREATE TABLE IF NOT EXISTS `player_wizard_skills` (
+    `player_id` int(11) NOT NULL,
+    `magical_power` tinyint(3) UNSIGNED NOT NULL DEFAULT '1',
+    `magical_control` tinyint(3) UNSIGNED NOT NULL DEFAULT '1',
+    `magical_knowledge` tinyint(3) UNSIGNED NOT NULL DEFAULT '1',
+    `skill_combat` tinyint(3) UNSIGNED NOT NULL DEFAULT '1',
+    CONSTRAINT `player_wizard_skills_pk` PRIMARY KEY (`player_id`),
+    CONSTRAINT `player_wizard_skills_players_fk` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Wizard Magic Core per-spell progression
+CREATE TABLE IF NOT EXISTS `player_wizard_spells` (
+    `player_id` int(11) NOT NULL,
+    `spell_id` int(10) UNSIGNED NOT NULL,
+    `knowledge` tinyint(3) UNSIGNED NOT NULL DEFAULT '0',
+    `mastery` tinyint(3) UNSIGNED NOT NULL DEFAULT '0',
+    `learned` tinyint(1) UNSIGNED NOT NULL DEFAULT '0',
+    `uses` bigint(20) UNSIGNED NOT NULL DEFAULT '0',
+    CONSTRAINT `player_wizard_spells_pk` PRIMARY KEY (`player_id`, `spell_id`),
+    CONSTRAINT `player_wizard_spells_players_fk` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Table structure `player_stash`

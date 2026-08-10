@@ -31,6 +31,8 @@
 #include "map/spectators.hpp"
 #include "kv/kv.hpp"
 #include "creatures/players/components/wheel/wheel_definitions.hpp"
+#include "wizard/spells/wizard_spell_registry.hpp"
+#include "utils/tools.hpp"
 
 #include "enums/account_coins.hpp"
 #include "enums/account_errors.hpp"
@@ -340,6 +342,10 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "learnSpell", PlayerFunctions::luaPlayerLearnSpell);
 	Lua::registerMethod(L, "Player", "forgetSpell", PlayerFunctions::luaPlayerForgetSpell);
 	Lua::registerMethod(L, "Player", "hasLearnedSpell", PlayerFunctions::luaPlayerHasLearnedSpell);
+	Lua::registerMethod(L, "Player", "getWizardSkill", PlayerFunctions::luaPlayerGetWizardSkill);
+	Lua::registerMethod(L, "Player", "setWizardSkill", PlayerFunctions::luaPlayerSetWizardSkill);
+	Lua::registerMethod(L, "Player", "learnWizardSpell", PlayerFunctions::luaPlayerLearnWizardSpell);
+	Lua::registerMethod(L, "Player", "getWizardSpellInfo", PlayerFunctions::luaPlayerGetWizardSpellInfo);
 
 	Lua::registerMethod(L, "Player", "applyImbuementScroll", PlayerFunctions::luaPlayerApplyImbuementScroll);
 	Lua::registerMethod(L, "Player", "openImbuementWindow", PlayerFunctions::luaPlayerOpenImbuementWindow);
@@ -3491,6 +3497,93 @@ int PlayerFunctions::luaPlayerHasLearnedSpell(lua_State* L) {
 	} else {
 		lua_pushnil(L);
 	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerGetWizardSkill(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto name = asLowerCaseString(Lua::getString(L, 2));
+	const auto &skills = player->getWizardSkills();
+	if (name == "power") {
+		lua_pushnumber(L, skills.getMagicalPower());
+	} else if (name == "control") {
+		lua_pushnumber(L, skills.getMagicalControl());
+	} else if (name == "knowledge") {
+		lua_pushnumber(L, skills.getMagicalKnowledge());
+	} else if (name == "combat") {
+		lua_pushnumber(L, skills.getSkillCombat());
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetWizardSkill(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto name = asLowerCaseString(Lua::getString(L, 2));
+	const auto value = Lua::getNumber<uint16_t>(L, 3);
+	if (name == "power") {
+		player->setWizardSkill(WizardSkill::MAGICAL_POWER, value);
+	} else if (name == "control") {
+		player->setWizardSkill(WizardSkill::MAGICAL_CONTROL, value);
+	} else if (name == "knowledge") {
+		player->setWizardSkill(WizardSkill::MAGICAL_KNOWLEDGE, value);
+	} else if (name == "combat") {
+		player->setWizardSkill(WizardSkill::SKILL_COMBAT, value);
+	} else {
+		Lua::pushBoolean(L, false);
+		return 1;
+	}
+	Lua::pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerLearnWizardSpell(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto query = Lua::getString(L, 2);
+	const auto* spell = g_wizardSpells().getByName(query);
+	if (!spell) {
+		spell = g_wizardSpells().getByIncantation(query);
+	}
+	Lua::pushBoolean(L, spell && player->learnWizardSpell(spell->id));
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerGetWizardSpellInfo(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto query = Lua::getString(L, 2);
+	const auto* spell = g_wizardSpells().getByName(query);
+	if (!spell) {
+		spell = g_wizardSpells().getByIncantation(query);
+	}
+	if (!spell) {
+		lua_pushnil(L);
+		return 1;
+	}
+	const auto* progress = player->getWizardSpellProgress(spell->id);
+	lua_createtable(L, 0, 6);
+	Lua::setField(L, "id", spell->id);
+	Lua::setField(L, "name", spell->name);
+	Lua::setField(L, "incantation", spell->incantation);
+	Lua::setField(L, "learned", progress && progress->learned);
+	Lua::setField(L, "knowledge", progress ? progress->knowledge : 0);
+	Lua::setField(L, "mastery", progress ? progress->mastery : 0);
 	return 1;
 }
 

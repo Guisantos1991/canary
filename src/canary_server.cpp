@@ -39,6 +39,7 @@
 #include "creatures/players/components/weapon_proficiency.hpp"
 #include "creatures/players/vocations/vocation.hpp"
 #include "utils/benchmark.hpp"
+#include "wizard/wizard_magic.hpp"
 
 #ifndef USE_PRECOMPILED_HEADERS
 	#include <string_view>
@@ -177,7 +178,10 @@ int CanaryServer::run() {
 					logger.warn("Lua API documentation generation failed; continuing startup.");
 				}
 				validateDatapack();
-
+				std::string wizardError;
+				if (!WizardMagic::load(g_configManager().getString(CORE_DIRECTORY), wizardError)) {
+					throw FailedToInitializeCanary("[WizardMagic] " + wizardError);
+				}
 				const auto allowOldProtocol = g_configManager().getBoolean(OLD_PROTOCOL);
 				logger.info(
 					"Allowed client protocols: {} ({})",

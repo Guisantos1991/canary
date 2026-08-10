@@ -248,6 +248,10 @@ class PlayerFunctions {
 	static int luaPlayerLearnSpell(lua_State* L);
 	static int luaPlayerForgetSpell(lua_State* L);
 	static int luaPlayerHasLearnedSpell(lua_State* L);
+	static int luaPlayerGetWizardSkill(lua_State* L);
+	static int luaPlayerSetWizardSkill(lua_State* L);
+	static int luaPlayerLearnWizardSpell(lua_State* L);
+	static int luaPlayerGetWizardSpellInfo(lua_State* L);
 
 	static int luaPlayerApplyImbuementScroll(lua_State* L);
 	static int luaPlayerOpenImbuementWindow(lua_State* L);

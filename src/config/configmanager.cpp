@@ -79,7 +79,7 @@ bool ConfigManager::load() {
 		loadStringConfig(L, MYSQL_USER, "mysqlUser", "root");
 	}
 
-	loadBoolConfig(L, AIMBOT_HOTKEY_ENABLED, "hotkeyAimbotEnabled", true);
+	loadBoolConfig(L, AIMBOT_HOTKEY_ENABLED, "hotkeyAimbotEnabled", false);
 	loadBoolConfig(L, ALLOW_CHANGEOUTFIT, "allowChangeOutfit", true);
 	loadBoolConfig(L, ALLOW_RELOAD, "allowReload", false);
 	loadBoolConfig(L, AUTOBANK, "autoBank", false);
