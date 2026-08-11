@@ -26,6 +26,7 @@
 #include "creatures/players/components/player_forge_history.hpp"
 #include "creatures/players/components/player_storage.hpp"
 #include "creatures/players/components/player_title.hpp"
+#include "creatures/players/components/pvp/player_pvp.hpp"
 #include "creatures/players/components/wheel/player_wheel.hpp"
 #include "creatures/players/components/player_vip.hpp"
 #include "creatures/players/components/wheel/wheel_gems.hpp"
@@ -90,6 +91,7 @@ enum PreySlot_t : uint8_t;
 enum SpeakClasses : uint8_t;
 enum ChannelEvent_t : uint8_t;
 enum SquareColor_t : uint8_t;
+enum CreatureMark_t : uint8_t;
 enum Resource_t : uint8_t;
 
 using GuildWarVector = std::vector<uint32_t>;
@@ -753,6 +755,8 @@ public:
 	void setChaseMode(bool mode);
 	void setFightMode(FightMode_t mode);
 	void setSecureMode(bool mode);
+	void setPvpMode(PvpMode_t mode);
+	[[nodiscard]] PvpMode_t getPvpMode() const;
 
 	Faction_t getFaction() const override;
 
@@ -808,7 +812,6 @@ public:
 
 	[[nodiscard]] const WizardSkillSnapshot &getWizardSkills() const;
 	void setWizardSkill(WizardSkill skill, uint16_t value);
-	void synchronizeWizardMana();
 	[[nodiscard]] bool hasLearnedWizardSpell(uint32_t spellId) const;
 	bool learnWizardSpell(uint32_t spellId);
 	WizardSpellProgress &getOrCreateWizardSpellProgress(uint32_t spellId);
@@ -902,6 +905,7 @@ public:
 	int32_t getPartyMantra() const;
 	void updatePartyMantra() const;
 
+	void addPzLockTicks();
 	void addInFightTicks(bool pzlock = false);
 
 	uint64_t getGainedExperience(const std::shared_ptr<Creature> &attacker) const override;
@@ -936,6 +940,8 @@ public:
 	void setSkullTicks(int64_t ticks);
 
 	bool hasAttacked(const std::shared_ptr<Player> &attacked) const;
+	[[nodiscard]] const phmap::flat_hash_set<uint32_t> &getAttackedPlayerGuids() const;
+	[[nodiscard]] const phmap::flat_hash_set<uint32_t> &getAttackerPlayerGuids() const;
 	void addAttacked(const std::shared_ptr<Player> &attacked);
 	void removeAttacked(const std::shared_ptr<Player> &attacked);
 	void clearAttacked();
@@ -983,6 +989,7 @@ public:
 	void sendCreatureReload(const std::shared_ptr<Creature> &creature) const;
 	void sendPrivateMessage(const std::shared_ptr<Player> &speaker, SpeakClasses type, const std::string &text) const;
 	void sendCreatureSquare(const std::shared_ptr<Creature> &creature, SquareColor_t color) const;
+	void sendCreatureMark(const std::shared_ptr<Creature> &creature, CreatureMark_t mark) const;
 	void sendCreatureChangeOutfit(const std::shared_ptr<Creature> &creature, const Outfit_t &outfit) const;
 	void sendCreatureChangeVisible(const std::shared_ptr<Creature> &creature, bool visible);
 	void sendCreatureLight(const std::shared_ptr<Creature> &creature) const;
@@ -1668,6 +1675,7 @@ private:
 	void healFromHarmony(uint8_t charges = 1);
 
 	phmap::flat_hash_set<uint32_t> attackedSet {};
+	phmap::flat_hash_set<uint32_t> attackerSet {};
 
 	std::map<uint8_t, OpenContainer> openContainers;
 	std::map<uint32_t, std::shared_ptr<DepotLocker>> depotLockerMap;
@@ -1871,6 +1879,8 @@ private:
 	bool wasMounted = false;
 	bool ghostMode = false;
 	bool pzLocked = false;
+	int64_t pzLockOnlyUntil = 0;
+	uint64_t pzLockEventId = 0;
 	bool isConnecting = false;
 	bool addAttackSkillPoint = false;
 	bool inventoryAbilities[CONST_SLOT_LAST + 1] = {};
@@ -1959,6 +1969,7 @@ private:
 	friend class PlayerForgeHistory;
 
 	PlayerWheel m_wheelPlayer;
+	PlayerPvp m_pvpPlayer;
 	PlayerAchievement m_playerAchievement;
 	PlayerBadge m_playerBadge;
 	PlayerCyclopedia m_playerCyclopedia;

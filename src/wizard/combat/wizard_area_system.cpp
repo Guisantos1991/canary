@@ -70,6 +70,7 @@ std::vector<Position> WizardAreaSystem::resolve(
 	appendPosition(positions, center, 0, 0);
 
 	for (int32_t radius = 1; positions.size() < required; ++radius) {
+		const auto sizeBeforeRadius = positions.size();
 		std::vector<std::pair<int32_t, int32_t>> offsets;
 		switch (area.pattern) {
 			case WizardAreaPattern::NONE:
@@ -105,6 +106,9 @@ std::vector<Position> WizardAreaSystem::resolve(
 			if (positions.size() == required) {
 				break;
 			}
+		}
+		if (positions.size() == sizeBeforeRadius) {
+			break;
 		}
 	}
 	return positions;

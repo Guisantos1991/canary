@@ -1,5 +1,5 @@
 function onUpdateDatabase()
-	logger.info("Updating database to version 59 (Wizard Magic Core persistence)")
+	logger.info("Updating database to version 60 (Wizard Magic Core persistence)")
 
 	if not db.query([[
 		CREATE TABLE IF NOT EXISTS `player_wizard_skills` (
@@ -8,8 +8,8 @@ function onUpdateDatabase()
 			`magical_control` tinyint(3) UNSIGNED NOT NULL DEFAULT '1',
 			`magical_knowledge` tinyint(3) UNSIGNED NOT NULL DEFAULT '1',
 			`skill_combat` tinyint(3) UNSIGNED NOT NULL DEFAULT '1',
-			PRIMARY KEY (`player_id`),
-			FOREIGN KEY (`player_id`) REFERENCES `players` (`id`) ON DELETE CASCADE
+			CONSTRAINT `player_wizard_skills_pk` PRIMARY KEY (`player_id`),
+			CONSTRAINT `player_wizard_skills_players_fk` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`) ON DELETE CASCADE
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 	]]) then
 		return false
@@ -23,8 +23,8 @@ function onUpdateDatabase()
 			`mastery` tinyint(3) UNSIGNED NOT NULL DEFAULT '0',
 			`learned` tinyint(1) UNSIGNED NOT NULL DEFAULT '0',
 			`uses` bigint(20) UNSIGNED NOT NULL DEFAULT '0',
-			PRIMARY KEY (`player_id`, `spell_id`),
-			FOREIGN KEY (`player_id`) REFERENCES `players` (`id`) ON DELETE CASCADE
+			CONSTRAINT `player_wizard_spells_pk` PRIMARY KEY (`player_id`, `spell_id`),
+			CONSTRAINT `player_wizard_spells_players_fk` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`) ON DELETE CASCADE
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 	]])
 end

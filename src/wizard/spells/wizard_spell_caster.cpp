@@ -61,6 +61,36 @@ namespace {
 		const int32_t minimum = std::min(maximum, rawMinimum + static_cast<int32_t>(std::floor(static_cast<double>(maximum - rawMinimum) * stability)));
 		return normal_random(minimum, maximum);
 	}
+
+	bool cannotCast(const std::shared_ptr<Player> &player) {
+		return player->isRemoved() || player->getHealth() <= 0 || player->hasFlag(PlayerFlags_t::CannotUseSpells)
+			|| player->hasCondition(CONDITION_FEARED) || player->hasCondition(CONDITION_PACIFIED);
+	}
+
+	WizardTargetValidationResult validateTarget(
+		const std::shared_ptr<Player> &player,
+		const WizardSpellDefinition &spell,
+		const Position &resolvedTarget,
+		const std::optional<Position> &requestedTarget
+	) {
+		const auto tile = g_game().map.getTile(resolvedTarget);
+		const bool lineOfSightClear = !spell.requiresLineOfSight || g_game().canThrowObjectTo(
+			player->getPosition(),
+			resolvedTarget,
+			SightLine_CheckSightLineAndFloor,
+			spell.range,
+			spell.range
+		);
+		return WizardTargetingValidator::validate(
+			spell.targetType,
+			player->getPosition(),
+			requestedTarget,
+			spell.range,
+			tile != nullptr,
+			spell.requiresLineOfSight,
+			lineOfSightClear
+		);
+	}
 }
 
 bool WizardSpellCaster::handleExtendedOpcode(const std::shared_ptr<Player> &player, const std::string &buffer) {
@@ -103,13 +133,12 @@ bool WizardSpellCaster::cast(const std::shared_ptr<Player> &player, const uint32
 
 	const Position resolvedTarget = spell->targetType == WizardTargetType::SELF ? player->getPosition() : targetPosition.value_or(Position {});
 	const auto tile = g_game().map.getTile(resolvedTarget);
-	const bool lineOfSightClear = !spell->requiresLineOfSight || g_game().canThrowObjectTo(player->getPosition(), resolvedTarget, SightLine_CheckSightLineAndFloor, spell->range, spell->range);
-	const auto targetResult = WizardTargetingValidator::validate(spell->targetType, player->getPosition(), targetPosition, spell->range, tile != nullptr, spell->requiresLineOfSight, lineOfSightClear);
+	const auto targetResult = validateTarget(player, *spell, resolvedTarget, targetPosition);
 	if (targetResult != WizardTargetValidationResult::OK) {
 		sendFailure(player, targetError(targetResult));
 		return false;
 	}
-	if (player->isRemoved() || player->getHealth() <= 0 || player->hasFlag(PlayerFlags_t::CannotUseSpells) || player->hasCondition(CONDITION_FEARED) || player->hasCondition(CONDITION_PACIFIED)) {
+	if (cannotCast(player)) {
 		sendFailure(player, "You cannot cast right now.");
 		return false;
 	}
@@ -152,12 +181,33 @@ void WizardSpellCaster::executeCast(const uint32_t playerId, const uint32_t spel
 	if (!player || !spell || player->isRemoved() || player->getHealth() <= 0) {
 		return;
 	}
+	const auto abortCast = [&player](const std::string &message) {
+		sendFailure(player, message);
+		player->setWizardRecoveryUntil(0);
+	};
+	if (cannotCast(player)) {
+		abortCast("You cannot cast right now.");
+		return;
+	}
+
+	const Position resolvedTarget = spell->targetType == WizardTargetType::SELF ? player->getPosition() : targetPosition;
+	const auto requestedTarget = std::optional<Position> { resolvedTarget };
+	const auto targetResult = validateTarget(player, *spell, resolvedTarget, requestedTarget);
+	if (targetResult != WizardTargetValidationResult::OK) {
+		abortCast(targetError(targetResult));
+		return;
+	}
+	const auto tile = g_game().map.getTile(resolvedTarget);
+	if (Combat::canDoCombat(player, tile, spell->category == WizardSpellCategory::OFFENSIVE) != RETURNVALUE_NOERROR) {
+		abortCast("You cannot use that spell on this tile.");
+		return;
+	}
+
 	auto &progress = player->getOrCreateWizardSpellProgress(spellId);
 	const auto &config = g_wizardProgression().get();
 	const uint32_t manaCost = WizardManaSystem::calculateSpellManaCost(spell->manaCost, player->getWizardSkills().getMagicalControl(), progress.mastery, config.mana);
 	if (player->getMana() < manaCost) {
-		sendFailure(player, "The spell failed because your mana changed during casting.");
-		player->setWizardRecoveryUntil(0);
+		abortCast("The spell failed because your mana changed during casting.");
 		return;
 	}
 
@@ -169,16 +219,16 @@ void WizardSpellCaster::executeCast(const uint32_t playerId, const uint32_t spel
 	progress.mastery = std::min<uint16_t>(100, std::max<uint16_t>(progress.mastery, static_cast<uint16_t>(progress.uses / 10)));
 
 	if (spell->projectile.visualEffect != 0) {
-		g_game().addDistanceEffect(player->getPosition(), targetPosition, spell->projectile.visualEffect, player);
+		g_game().addDistanceEffect(player->getPosition(), resolvedTarget, spell->projectile.visualEffect, player);
 	}
 	const auto power = player->getWizardSkills().getMagicalPower();
 	const auto combat = player->getWizardSkills().getSkillCombat();
 	const auto mastery = progress.mastery;
 	if (spell->projectile.travelTimeMs == 0) {
-		impact(playerId, spellId, targetPosition, power, combat, mastery);
+		impact(playerId, spellId, resolvedTarget, power, combat, mastery);
 	} else {
-		g_dispatcher().scheduleEvent(spell->projectile.travelTimeMs, [playerId, spellId, targetPosition, power, combat, mastery] {
-			WizardSpellCaster::impact(playerId, spellId, targetPosition, power, combat, mastery);
+		g_dispatcher().scheduleEvent(spell->projectile.travelTimeMs, [playerId, spellId, resolvedTarget, power, combat, mastery] {
+			WizardSpellCaster::impact(playerId, spellId, resolvedTarget, power, combat, mastery);
 		}, "WizardSpellCaster::impact");
 	}
 }
@@ -189,6 +239,10 @@ void WizardSpellCaster::impact(const uint32_t playerId, const uint32_t spellId, 
 	if (!player || !spell) {
 		return;
 	}
+	CombatParams combatParams;
+	combatParams.combatType = combatTypeForElement(spell->element);
+	combatParams.origin = ORIGIN_SPELL;
+	combatParams.aggressive = spell->category == WizardSpellCategory::OFFENSIVE;
 
 	for (const auto &position : WizardAreaSystem::resolve(spell->area, targetPosition, magicalPower)) {
 		const auto tile = g_game().map.getTile(position);
@@ -204,15 +258,15 @@ void WizardSpellCaster::impact(const uint32_t playerId, const uint32_t spellId, 
 		}
 		const CreatureVector occupants = *creatures;
 		for (const auto &target : occupants) {
-			if (!target || target == player || Combat::canDoCombat(player, target, true) != RETURNVALUE_NOERROR) {
+			if (!target || target == player) {
 				continue;
 			}
 			CombatDamage damage;
 			damage.origin = ORIGIN_SPELL;
-			damage.primary.type = combatTypeForElement(spell->element);
+			damage.primary.type = combatParams.combatType;
 			damage.primary.value = -calculateDamage(*spell, magicalPower, skillCombat, mastery);
 			damage.instantSpellName = spell->name;
-			g_game().combatChangeHealth(player, target, damage);
+			Combat::doCombatHealth(player, target, damage, combatParams);
 		}
 	}
 }

@@ -1,7 +1,6 @@
 services:
   server:
     image: canary-wizard-local:dev
-    platform: linux/arm64
     build:
       context: ..
       dockerfile: docker/Dockerfile.local

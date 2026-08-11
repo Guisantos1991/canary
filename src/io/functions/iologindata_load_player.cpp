@@ -175,6 +175,7 @@ bool IOLoginDataLoad::loadPlayerBasicInfo(const std::shared_ptr<Player> &player,
 	player->addBossPoints(result->getNumber<uint32_t>("boss_points"));
 	player->lastLoginSaved = result->getNumber<time_t>("lastlogin");
 	player->lastLogout = result->getNumber<time_t>("lastlogout");
+	player->setPvpMode(static_cast<PvpMode_t>(result->getNumber<uint16_t>("expert_pvp_mode")));
 	player->offlineTrainingTime = result->getNumber<int32_t>("offlinetraining_time") * 1000;
 	auto skill = result->getInt8FromString(result->getString("offlinetraining_skill"), __FUNCTION__);
 	player->setOfflineTrainingSkill(skill);
@@ -573,7 +574,6 @@ void IOLoginDataLoad::loadPlayerWizardData(const std::shared_ptr<Player> &player
 			progress.uses = result->getNumber<uint64_t>("uses");
 		} while (result->next());
 	}
-	player->synchronizeWizardMana();
 }
 
 void IOLoginDataLoad::loadPlayerInventoryItems(const std::shared_ptr<Player> &player, DBResult_ptr result) {

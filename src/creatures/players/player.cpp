@@ -24,6 +24,7 @@
 #include "creatures/players/imbuements/imbuements.hpp"
 #include "creatures/players/storages/storages.hpp"
 #include "creatures/players/components/player_forge_history.hpp"
+#include "creatures/players/components/pvp/expert_pvp.hpp"
 #include "server/network/protocol/protocolgame.hpp"
 #include "enums/account_errors.hpp"
 #include "enums/account_group_type.hpp"
@@ -67,8 +68,6 @@
 #include "creatures/players/livestream/livestream.hpp"
 #include "creatures/combat/spells.hpp"
 #include "utils/tools.hpp"
-#include "wizard/mana/wizard_mana_system.hpp"
-#include "wizard/progression/wizard_progression_config.hpp"
 #include "wizard/spells/wizard_spell_registry.hpp"
 
 namespace {
@@ -1021,7 +1020,12 @@ bool Player::hasSecureMode() const {
 }
 
 void Player::setParty(std::shared_ptr<Party> newParty) {
+	if (m_party == newParty) {
+		return;
+	}
+
 	m_party = std::move(newParty);
+	ExpertPvp::refreshAllVisibleSituationMarks();
 }
 
 std::shared_ptr<Party> Player::getParty() const {
@@ -1425,7 +1429,20 @@ bool Player::canWalkthrough(const std::shared_ptr<Creature> &creature) {
 
 	if (player) {
 		const auto &playerTile = player->getTile();
-		if (!playerTile || (!playerTile->hasFlag(TILESTATE_NOPVPZONE) && !playerTile->hasFlag(TILESTATE_PROTECTIONZONE) && player->getLevel() > static_cast<uint32_t>(g_configManager().getNumber(PROTECTION_LEVEL)) && g_game().getWorldType() != WORLD_TYPE_NO_PVP)) {
+		const bool legacyWalkthroughZone = playerTile && (playerTile->hasFlag(TILESTATE_NOPVPZONE) || playerTile->hasFlag(TILESTATE_PROTECTIONZONE) || player->getLevel() <= static_cast<uint32_t>(g_configManager().getNumber(PROTECTION_LEVEL)) || g_game().getWorldType() == WORLD_TYPE_NO_PVP);
+		if (!playerTile) {
+			return false;
+		}
+
+		if (!legacyWalkthroughZone && ExpertPvp::isEnabled()) {
+			const auto relation = ExpertPvp::classifyRelation(player, getPlayer());
+			const auto decision = ExpertPvp::canWalkThrough(relation.facts);
+			if (decision.handled) {
+				return decision.canWalkThrough;
+			}
+		}
+
+		if (!legacyWalkthroughZone) {
 			return false;
 		}
 
@@ -1473,7 +1490,16 @@ bool Player::canWalkthroughEx(const std::shared_ptr<Creature> &creature) const {
 	const auto &npc = creature->getNpc();
 	if (player) {
 		const auto &playerTile = player->getTile();
-		return playerTile && (playerTile->hasFlag(TILESTATE_NOPVPZONE) || playerTile->hasFlag(TILESTATE_PROTECTIONZONE) || player->getLevel() <= static_cast<uint32_t>(g_configManager().getNumber(PROTECTION_LEVEL)) || g_game().getWorldType() == WORLD_TYPE_NO_PVP);
+		const bool legacyWalkthroughZone = playerTile && (playerTile->hasFlag(TILESTATE_NOPVPZONE) || playerTile->hasFlag(TILESTATE_PROTECTIONZONE) || player->getLevel() <= static_cast<uint32_t>(g_configManager().getNumber(PROTECTION_LEVEL)) || g_game().getWorldType() == WORLD_TYPE_NO_PVP);
+		if (playerTile && !legacyWalkthroughZone && ExpertPvp::isEnabled()) {
+			const auto relation = ExpertPvp::classifyRelation(player, getPlayer());
+			const auto decision = ExpertPvp::canWalkThrough(relation.facts);
+			if (decision.handled) {
+				return decision.canWalkThrough;
+			}
+		}
+
+		return legacyWalkthroughZone;
 	} else if (npc) {
 		const auto &tile = npc->getTile();
 		const auto &houseTile = std::dynamic_pointer_cast<HouseTile>(tile);
@@ -4397,6 +4423,51 @@ std::shared_ptr<Item> Player::getCorpse(const std::shared_ptr<Creature> &lastHit
 	return corpse;
 }
 
+void Player::addPzLockTicks() {
+	if (hasFlag(PlayerFlags_t::NotGainInFight)) {
+		return;
+	}
+
+	const auto duration = static_cast<uint32_t>(g_configManager().getNumber(PZ_LOCKED));
+	const auto expiresAt = OTSYS_TIME() + duration;
+	if (pzLockOnlyUntil >= expiresAt) {
+		return;
+	}
+
+	pzLockOnlyUntil = expiresAt;
+	pzLocked = true;
+	sendIcons();
+	if (pzLockEventId != 0) {
+		g_dispatcher().stopEvent(pzLockEventId);
+	}
+
+	const auto &task = createPlayerTask(
+		duration,
+		[playerId = getID()] {
+			const auto &player = g_game().getPlayerByID(playerId);
+			if (!player) {
+				return;
+			}
+
+			player->pzLockEventId = 0;
+			if (player->hasCondition(CONDITION_INFIGHT) || player->pzLockOnlyUntil > OTSYS_TIME()) {
+				return;
+			}
+
+			player->pzLockOnlyUntil = 0;
+			if (player->pzLocked) {
+				player->pzLocked = false;
+				player->sendIcons();
+			}
+			if (player->getSkull() != SKULL_RED && player->getSkull() != SKULL_BLACK) {
+				player->setSkull(SKULL_NONE);
+			}
+		},
+		__FUNCTION__
+	);
+	pzLockEventId = g_dispatcher().scheduleEvent(task);
+}
+
 void Player::addInFightTicks(bool pzlock /*= false*/) {
 	wheel().checkAbilities();
 
@@ -4405,6 +4476,7 @@ void Player::addInFightTicks(bool pzlock /*= false*/) {
 	}
 
 	if (pzlock) {
+		pzLockOnlyUntil = 0;
 		pzLocked = true;
 		sendIcons();
 	}
@@ -6139,6 +6211,14 @@ void Player::setSecureMode(bool mode) {
 	secureMode = mode;
 }
 
+void Player::setPvpMode(PvpMode_t mode) {
+	(void)m_pvpPlayer.setMode(mode);
+}
+
+PvpMode_t Player::getPvpMode() const {
+	return m_pvpPlayer.getMode();
+}
+
 Faction_t Player::getFaction() const {
 	return faction;
 }
@@ -6319,11 +6399,17 @@ void Player::onEndCondition(ConditionType_t type) {
 	const auto &conditionFight = getCondition(CONDITION_INFIGHT);
 	if (type == CONDITION_INFIGHT && !conditionFight) {
 		onIdleStatus();
-		pzLocked = false;
+		const bool hasPzLockOnly = pzLockOnlyUntil > OTSYS_TIME();
+		if (hasPzLockOnly) {
+			pzLocked = true;
+		} else {
+			pzLockOnlyUntil = 0;
+			pzLocked = false;
+		}
 		clearAttacked();
 		sendOpenPvpSituations();
 
-		if (getSkull() != SKULL_RED && getSkull() != SKULL_BLACK) {
+		if (!hasPzLockOnly && getSkull() != SKULL_RED && getSkull() != SKULL_BLACK) {
 			setSkull(SKULL_NONE);
 		}
 	}
@@ -6388,7 +6474,7 @@ void Player::onAttackedCreature(const std::shared_ptr<Creature> &target) {
 	}
 
 	const auto &targetPlayer = target->getPlayer();
-	if (targetPlayer && !isPartner(targetPlayer) && !isGuildMate(targetPlayer)) {
+	if (targetPlayer && !ExpertPvp::isEnabled() && !isPartner(targetPlayer) && !isGuildMate(targetPlayer)) {
 		if (!pzLocked && g_game().getWorldType() == WORLD_TYPE_PVP_ENFORCED) {
 			pzLocked = true;
 			sendIcons();
@@ -6505,7 +6591,7 @@ bool Player::onKilledPlayer(const std::shared_ptr<Player> &target, bool lastHit)
 				for (auto &kill : target->unjustifiedKills) {
 					if (kill.target == getGUID() && kill.unavenged) {
 						kill.unavenged = false;
-						attackedSet.erase(target->guid);
+						removeAttacked(target);
 						break;
 					}
 				}
@@ -6677,17 +6763,6 @@ const WizardSkillSnapshot &Player::getWizardSkills() const {
 
 void Player::setWizardSkill(const WizardSkill skill, const uint16_t value) {
 	wizardSkills.set(skill, value);
-	synchronizeWizardMana();
-}
-
-void Player::synchronizeWizardMana() {
-	const auto &manaConfig = g_wizardProgression().get().mana;
-	manaMax = static_cast<int32_t>(WizardManaSystem::calculateMaxMana(wizardSkills, manaConfig));
-	mana = std::min(mana, manaMax);
-	if (client) {
-		g_game().addPlayerMana(static_self_cast<Player>());
-		sendStats();
-	}
 }
 
 bool Player::hasLearnedWizardSpell(const uint32_t spellId) const {
@@ -7182,12 +7257,24 @@ bool Player::hasAttacked(const std::shared_ptr<Player> &attacked) const {
 	return attackedSet.contains(attacked->guid);
 }
 
+const phmap::flat_hash_set<uint32_t> &Player::getAttackedPlayerGuids() const {
+	return attackedSet;
+}
+
+const phmap::flat_hash_set<uint32_t> &Player::getAttackerPlayerGuids() const {
+	return attackerSet;
+}
+
 void Player::addAttacked(const std::shared_ptr<Player> &attacked) {
 	if (hasFlag(PlayerFlags_t::NotGainInFight) || !attacked || attacked == getPlayer()) {
 		return;
 	}
 
-	attackedSet.emplace(attacked->guid);
+	const auto [iterator, inserted] = attackedSet.emplace(attacked->guid);
+	(void)iterator;
+	if (inserted) {
+		(void)attacked->attackerSet.emplace(guid);
+	}
 }
 
 void Player::removeAttacked(const std::shared_ptr<Player> &attacked) {
@@ -7195,11 +7282,27 @@ void Player::removeAttacked(const std::shared_ptr<Player> &attacked) {
 		return;
 	}
 
-	attackedSet.erase(attacked->guid);
+	if (attackedSet.erase(attacked->guid) == 0) {
+		return;
+	}
+
+	(void)attacked->attackerSet.erase(guid);
+	if (ExpertPvp::isEnabled()) {
+		ExpertPvp::refreshVisibleSituationMarks(static_self_cast<Player>(), attacked);
+	}
 }
 
 void Player::clearAttacked() {
+	const bool shouldRefreshExpertMarks = ExpertPvp::isEnabled() && !attackedSet.empty();
+	for (const auto attackedGuid : attackedSet) {
+		if (const auto &attacked = g_game().getPlayerByGUID(attackedGuid)) {
+			(void)attacked->attackerSet.erase(guid);
+		}
+	}
 	attackedSet.clear();
+	if (shouldRefreshExpertMarks) {
+		ExpertPvp::refreshAllVisibleSituationMarks();
+	}
 }
 
 void Player::addUnjustifiedDead(const std::shared_ptr<Player> &attacked) {
@@ -7308,7 +7411,7 @@ double Player::getLostPercent() const {
 		return std::max<int32_t>(0, deathLosePercent) / 100.;
 	}
 
-	bool isRetro = g_configManager().getBoolean(TOGGLE_SERVER_IS_RETRO);
+	bool isRetro = ExpertPvp::isRetroPvpWorldType();
 	const auto factor = (isRetro ? 6.31 : 8);
 	double percentReduction = (blessingCount * factor) / 100.;
 
@@ -8794,6 +8897,12 @@ void Player::sendCreatureSquare(const std::shared_ptr<Creature> &creature, Squar
 	}
 }
 
+void Player::sendCreatureMark(const std::shared_ptr<Creature> &creature, CreatureMark_t mark) const {
+	if (client) {
+		client->sendCreatureMark(creature, mark);
+	}
+}
+
 void Player::sendCreatureChangeOutfit(const std::shared_ptr<Creature> &creature, const Outfit_t &outfit) const {
 	if (client) {
 		client->sendCreatureOutfit(creature, outfit);
@@ -9196,6 +9305,7 @@ void Player::setGuild(const std::shared_ptr<Guild> &newGuild) {
 		return;
 	}
 
+	const auto oldGuild = guild;
 	if (guild) {
 		guild->removeMember(static_self_cast<Player>());
 		guild = nullptr;
@@ -9207,12 +9317,19 @@ void Player::setGuild(const std::shared_ptr<Guild> &newGuild) {
 	if (newGuild) {
 		const auto &rank = newGuild->getRankByLevel(1);
 		if (!rank) {
+			if (oldGuild != guild) {
+				ExpertPvp::refreshAllVisibleSituationMarks();
+			}
 			return;
 		}
 
 		guild = newGuild;
 		guildRank = rank;
 		newGuild->addMember(static_self_cast<Player>());
+	}
+
+	if (oldGuild != guild) {
+		ExpertPvp::refreshAllVisibleSituationMarks();
 	}
 }
 

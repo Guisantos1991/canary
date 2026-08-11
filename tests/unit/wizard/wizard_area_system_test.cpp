@@ -24,3 +24,10 @@ TEST(WizardAreaSystemTest, ResolvesDeterministicCenterOutArea) {
 	EXPECT_EQ(first, second);
 	EXPECT_EQ(first.front(), center);
 }
+
+TEST(WizardAreaSystemTest, StopsWhenPatternPointsOutsideMapBounds) {
+	WizardAreaDefinition area { WizardAreaPattern::LINE, 3, 12 };
+	const auto positions = WizardAreaSystem::resolve(area, Position { 100, 0, 7 }, 100, DIRECTION_NORTH);
+	ASSERT_EQ(positions.size(), 1);
+	EXPECT_EQ(positions.front(), Position(100, 0, 7));
+}
