@@ -44,6 +44,17 @@ cp .env.dist .env
 docker compose up -d --build
 ```
 
+The default quickstart always uses the published Canary runtime image. Developers
+who intentionally want to compile the server from the current checkout can opt
+in to the separate local-build Compose file:
+
+```bash
+docker compose -f docker-compose.yml -f compose.local-build.yml up -d --build
+```
+
+The local-build file does not force a CPU architecture, so Docker selects the
+native platform of the development host.
+
 On Windows PowerShell, you can use the guarded start script:
 
 ```powershell

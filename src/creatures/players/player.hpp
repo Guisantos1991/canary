@@ -33,6 +33,7 @@
 #include "creatures/players/components/player_attached_effects.hpp"
 #include "creatures/players/components/weapon_proficiency.hpp"
 #include "utils/hash.hpp"
+#include "wizard/skills/wizard_skill.hpp"
 
 class House;
 class NetworkMessage;
@@ -808,6 +809,19 @@ public:
 
 	void changeHealth(int32_t healthChange, bool sendHealthChange = true) override;
 	void changeMana(int32_t manaChange) override;
+
+	[[nodiscard]] const WizardSkillSnapshot &getWizardSkills() const;
+	void setWizardSkill(WizardSkill skill, uint16_t value);
+	[[nodiscard]] bool hasLearnedWizardSpell(uint32_t spellId) const;
+	bool learnWizardSpell(uint32_t spellId);
+	WizardSpellProgress &getOrCreateWizardSpellProgress(uint32_t spellId);
+	[[nodiscard]] const WizardSpellProgress* getWizardSpellProgress(uint32_t spellId) const;
+	[[nodiscard]] const std::unordered_map<uint32_t, WizardSpellProgress> &getWizardSpellProgressMap() const;
+	void clearWizardSpellProgress();
+	[[nodiscard]] int64_t getWizardRecoveryUntil() const;
+	void setWizardRecoveryUntil(int64_t value);
+	[[nodiscard]] int64_t getWizardCooldownUntil(uint32_t spellId) const;
+	void setWizardCooldownUntil(uint32_t spellId, int64_t value);
 	void changeSoul(int32_t soulChange);
 
 	bool isPzLocked() const;
@@ -1688,6 +1702,10 @@ private:
 	std::vector<std::shared_ptr<Party>> invitePartyList;
 	std::vector<uint32_t> modalWindows;
 	std::vector<std::string> learnedInstantSpellList;
+	WizardSkillSnapshot wizardSkills;
+	std::unordered_map<uint32_t, WizardSpellProgress> wizardSpellProgress;
+	std::unordered_map<uint32_t, int64_t> wizardSpellCooldowns;
+	int64_t wizardRecoveryUntil = 0;
 	// TODO: This variable is only temporarily used when logging in, get rid of it somehow.
 	std::vector<std::shared_ptr<Condition>> storedConditionList;
 

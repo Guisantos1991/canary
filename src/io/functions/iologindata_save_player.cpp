@@ -444,6 +444,46 @@ bool IOLoginDataSave::savePlayerSpells(const std::shared_ptr<Player> &player) {
 	return true;
 }
 
+bool IOLoginDataSave::savePlayerWizardData(const std::shared_ptr<Player> &player) {
+	if (!player) {
+		g_logger().warn("[{}] - Player nullptr", __FUNCTION__);
+		return false;
+	}
+
+	Database &db = Database::getInstance();
+	const auto playerGuid = player->getGUID();
+	const auto &skills = player->getWizardSkills();
+	if (!db.executeQuery(fmt::format(
+			"INSERT INTO `player_wizard_skills` (`player_id`, `magical_power`, `magical_control`, `magical_knowledge`, `skill_combat`) VALUES ({}, {}, {}, {}, {}) "
+			"ON DUPLICATE KEY UPDATE `magical_power` = VALUES(`magical_power`), `magical_control` = VALUES(`magical_control`), `magical_knowledge` = VALUES(`magical_knowledge`), `skill_combat` = VALUES(`skill_combat`)",
+			playerGuid,
+			skills.getMagicalPower(),
+			skills.getMagicalControl(),
+			skills.getMagicalKnowledge(),
+			skills.getSkillCombat()
+		))) {
+		return false;
+	}
+
+	if (!db.executeQuery(fmt::format("DELETE FROM `player_wizard_spells` WHERE `player_id` = {}", playerGuid))) {
+		return false;
+	}
+	if (player->getWizardSpellProgressMap().empty()) {
+		return true;
+	}
+
+	DBInsert query("INSERT INTO `player_wizard_spells` (`player_id`, `spell_id`, `knowledge`, `mastery`, `learned`, `uses`) VALUES ");
+	fmt::memory_buffer rowBuffer;
+	for (const auto &[spellId, progress] : player->getWizardSpellProgressMap()) {
+		rowBuffer.clear();
+		fmt::format_to(std::back_inserter(rowBuffer), "{},{},{},{},{},{}", playerGuid, spellId, std::min<uint16_t>(100, progress.knowledge), std::min<uint16_t>(100, progress.mastery), progress.learned ? 1 : 0, progress.uses);
+		if (!query.addRow(std::string_view(rowBuffer.data(), rowBuffer.size()))) {
+			return false;
+		}
+	}
+	return query.execute();
+}
+
 bool IOLoginDataSave::savePlayerKills(const std::shared_ptr<Player> &player) {
 	if (!player) {
 		g_logger().warn("[IOLoginData::savePlayer] - Player nullptr: {}", __FUNCTION__);

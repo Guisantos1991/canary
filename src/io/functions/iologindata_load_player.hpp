@@ -31,6 +31,7 @@ public:
 	static void loadPlayerStashItems(const std::shared_ptr<Player> &player, DBResult_ptr result);
 	static void loadPlayerBestiaryCharms(const std::shared_ptr<Player> &player, DBResult_ptr result);
 	static void loadPlayerInstantSpellList(const std::shared_ptr<Player> &player, DBResult_ptr result);
+	static void loadPlayerWizardData(const std::shared_ptr<Player> &player);
 	static void loadPlayerInventoryItems(const std::shared_ptr<Player> &player, DBResult_ptr result);
 	static void loadPlayerStoreInbox(const std::shared_ptr<Player> &player);
 	static void loadPlayerDepotItems(const std::shared_ptr<Player> &player, DBResult_ptr result);

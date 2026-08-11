@@ -68,6 +68,7 @@
 #include "creatures/players/livestream/livestream.hpp"
 #include "creatures/combat/spells.hpp"
 #include "utils/tools.hpp"
+#include "wizard/spells/wizard_spell_registry.hpp"
 
 namespace {
 	[[nodiscard]] double getItemImbuementSkillEquipment(const std::shared_ptr<Item> &item, uint16_t skill) {
@@ -6754,6 +6755,64 @@ void Player::changeMana(int32_t manaChange) {
 	}
 	g_game().addPlayerMana(static_self_cast<Player>());
 	sendStats();
+}
+
+const WizardSkillSnapshot &Player::getWizardSkills() const {
+	return wizardSkills;
+}
+
+void Player::setWizardSkill(const WizardSkill skill, const uint16_t value) {
+	wizardSkills.set(skill, value);
+}
+
+bool Player::hasLearnedWizardSpell(const uint32_t spellId) const {
+	const auto found = wizardSpellProgress.find(spellId);
+	return found != wizardSpellProgress.end() && found->second.learned;
+}
+
+bool Player::learnWizardSpell(const uint32_t spellId) {
+	const auto* spell = g_wizardSpells().getById(spellId);
+	if (!spell || !spell->learnable) {
+		return false;
+	}
+	auto &progress = getOrCreateWizardSpellProgress(spellId);
+	progress.learned = true;
+	progress.knowledge = std::max<uint16_t>(progress.knowledge, std::max(spell->difficulty, spell->requiredKnowledge));
+	return true;
+}
+
+WizardSpellProgress &Player::getOrCreateWizardSpellProgress(const uint32_t spellId) {
+	return wizardSpellProgress[spellId];
+}
+
+const WizardSpellProgress* Player::getWizardSpellProgress(const uint32_t spellId) const {
+	const auto found = wizardSpellProgress.find(spellId);
+	return found == wizardSpellProgress.end() ? nullptr : &found->second;
+}
+
+const std::unordered_map<uint32_t, WizardSpellProgress> &Player::getWizardSpellProgressMap() const {
+	return wizardSpellProgress;
+}
+
+void Player::clearWizardSpellProgress() {
+	wizardSpellProgress.clear();
+}
+
+int64_t Player::getWizardRecoveryUntil() const {
+	return wizardRecoveryUntil;
+}
+
+void Player::setWizardRecoveryUntil(const int64_t value) {
+	wizardRecoveryUntil = value;
+}
+
+int64_t Player::getWizardCooldownUntil(const uint32_t spellId) const {
+	const auto found = wizardSpellCooldowns.find(spellId);
+	return found == wizardSpellCooldowns.end() ? 0 : found->second;
+}
+
+void Player::setWizardCooldownUntil(const uint32_t spellId, const int64_t value) {
+	wizardSpellCooldowns[spellId] = value;
 }
 
 void Player::changeSoul(int32_t soulChange) {

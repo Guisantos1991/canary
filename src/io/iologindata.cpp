@@ -169,6 +169,9 @@ bool IOLoginData::loadPlayer(const std::shared_ptr<Player> &player, const DBResu
 		// Load instant spells list
 		IOLoginDataLoad::loadPlayerInstantSpellList(player, result);
 
+		// Wizard Magic skills and per-spell progression use dedicated tables.
+		IOLoginDataLoad::loadPlayerWizardData(player);
+
 		if (!disableIrrelevantInfo) {
 			// Load additional data only if the player is online (e.g., forge, bosstiary)
 			loadOnlyDataForOnlinePlayer(player, result);
@@ -225,6 +228,10 @@ bool IOLoginData::savePlayerGuard(const std::shared_ptr<Player> &player) {
 
 	if (!IOLoginDataSave::savePlayerSpells(player)) {
 		throw DatabaseException("[IOLoginDataSave::savePlayerSpells] - Failed to save player spells: " + player->getName());
+	}
+
+	if (!IOLoginDataSave::savePlayerWizardData(player)) {
+		throw DatabaseException("[IOLoginDataSave::savePlayerWizardData] - Failed to save wizard data: " + player->getName());
 	}
 
 	if (!IOLoginDataSave::savePlayerKills(player)) {

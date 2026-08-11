@@ -1,0 +1,9 @@
+services:
+  server:
+    image: canary-wizard-local:dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.local
+    volumes:
+      - server-data:/data
+      - ../data/scripts:/canary/data/scripts

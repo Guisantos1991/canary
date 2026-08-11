@@ -104,6 +104,16 @@
     <ClInclude Include="..\src\io\io_definitions.hpp" />
     <ClInclude Include="..\src\io\player_storage_repository.hpp" />
     <ClInclude Include="..\src\io\player_storage_repository_db.hpp" />
+    <ClInclude Include="..\src\wizard\combat\wizard_area_system.hpp" />
+    <ClInclude Include="..\src\wizard\exhaustion\wizard_exhaustion_system.hpp" />
+    <ClInclude Include="..\src\wizard\mana\wizard_mana_system.hpp" />
+    <ClInclude Include="..\src\wizard\progression\wizard_progression_config.hpp" />
+    <ClInclude Include="..\src\wizard\skills\wizard_skill.hpp" />
+    <ClInclude Include="..\src\wizard\spells\wizard_spell_caster.hpp" />
+    <ClInclude Include="..\src\wizard\spells\wizard_spell_definition.hpp" />
+    <ClInclude Include="..\src\wizard\spells\wizard_spell_registry.hpp" />
+    <ClInclude Include="..\src\wizard\spells\wizard_targeting_validator.hpp" />
+    <ClInclude Include="..\src\wizard\wizard_magic.hpp" />
     <ClInclude Include="..\src\items\bed.hpp" />
     <ClInclude Include="..\src\items\containers\container.hpp" />
     <ClInclude Include="..\src\items\containers\depot\depotchest.hpp" />
@@ -470,6 +480,14 @@
     <ClCompile Include="..\src\utils\pugicast.cpp" />
     <ClCompile Include="..\src\utils\tools.cpp" />
     <ClCompile Include="..\src\utils\wildcardtree.cpp" />
+    <ClCompile Include="..\src\wizard\combat\wizard_area_system.cpp" />
+    <ClCompile Include="..\src\wizard\exhaustion\wizard_exhaustion_system.cpp" />
+    <ClCompile Include="..\src\wizard\mana\wizard_mana_system.cpp" />
+    <ClCompile Include="..\src\wizard\progression\wizard_progression_config.cpp" />
+    <ClCompile Include="..\src\wizard\spells\wizard_spell_caster.cpp" />
+    <ClCompile Include="..\src\wizard\spells\wizard_spell_registry.cpp" />
+    <ClCompile Include="..\src\wizard\spells\wizard_targeting_validator.cpp" />
+    <ClCompile Include="..\src\wizard\wizard_magic.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\pch.cpp">

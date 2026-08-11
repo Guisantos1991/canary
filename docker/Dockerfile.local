@@ -1,0 +1,64 @@
+# syntax=docker/dockerfile:1.7
+
+FROM ubuntu:24.04 AS dependencies
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=${DEBIAN_FRONTEND}
+ENV TZ=Etc/UTC
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+	--mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+	apt-get update && apt-get install -y --no-install-recommends \
+	build-essential ca-certificates cmake curl git ninja-build pkg-config python3 \
+	autoconf automake libtool tar unzip zip \
+	&& rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt
+COPY vcpkg.json /opt/vcpkg.json
+RUN baseline=$(sed -n 's/.*"builtin-baseline": "\([^"]*\)".*/\1/p' /opt/vcpkg.json) \
+	&& git clone https://github.com/microsoft/vcpkg.git /opt/vcpkg \
+	&& git -C /opt/vcpkg checkout "$baseline" \
+	&& /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+
+WORKDIR /opt/manifest
+COPY vcpkg.json /opt/manifest/vcpkg.json
+RUN --mount=type=cache,target=/opt/vcpkg/downloads \
+	--mount=type=cache,target=/opt/vcpkg/buildtrees \
+	--mount=type=cache,target=/opt/vcpkg/packages \
+	--mount=type=cache,target=/root/.cache/vcpkg/archives \
+	VCPKG_BINARY_SOURCES="clear;files,/root/.cache/vcpkg/archives,readwrite" \
+	VCPKG_MAX_CONCURRENCY=2 \
+	/opt/vcpkg/vcpkg install --x-manifest-root=/opt/manifest --x-install-root=/opt/vcpkg_installed
+
+FROM dependencies AS build
+WORKDIR /srv
+COPY . /srv
+COPY --from=dependencies /opt/vcpkg_installed /srv/vcpkg_installed
+RUN VCPKG_ROOT=/opt/vcpkg VCPKG_FORCE_SYSTEM_BINARIES=1 CMAKE_BUILD_PARALLEL_LEVEL=2 \
+	cmake --preset linux-release -DTOGGLE_BIN_FOLDER=ON -DSPEED_UP_BUILD_UNITY=OFF -DOPTIONS_ENABLE_IPO=OFF -DVCPKG_MANIFEST_INSTALL=OFF -DVCPKG_INSTALLED_DIR=/srv/vcpkg_installed \
+	&& cmake --build --preset linux-release
+
+FROM ubuntu:24.04 AS runtime
+ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=${DEBIAN_FRONTEND}
+ENV TZ=Etc/UTC
+VOLUME [ "/data" ]
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+	--mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+	apt-get update && apt-get install -y --no-install-recommends \
+	ca-certificates curl mariadb-client tzdata libluajit-5.1-2 \
+	&& rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /srv/build/linux-release/bin/canary /bin/canary
+COPY LICENSE schema.sql key.pem /canary/
+COPY data /canary/data
+COPY data-canary /canary/data-canary
+COPY data-otservbr-global /canary/data-otservbr-global
+COPY config.lua.dist /canary/config.lua
+COPY docker/data/01-test_account.sql /canary/01-test_account.sql
+COPY docker/data/02-test_account_players.sql /canary/02-test_account_players.sql
+COPY --chmod=755 docker/data/start.sh /canary/start.sh
+
+WORKDIR /canary
+ENTRYPOINT ["/canary/start.sh"]

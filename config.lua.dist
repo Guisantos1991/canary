@@ -31,7 +31,7 @@ maintainModeMessage = ""
 -- NOTE: refundManaOnBeginningWeapons: wand of vortex and snakebite refund mana used (allows training for mages)
 -- NOTE: loginProtectionTime in MS
 worldType = "retro-pvp"
-hotkeyAimbotEnabled = true
+hotkeyAimbotEnabled = false
 protectionLevel = 7
 pzLocked = 60 * 1000
 removeChargesFromRunes = true

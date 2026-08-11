@@ -540,6 +540,42 @@ void IOLoginDataLoad::loadPlayerInstantSpellList(const std::shared_ptr<Player> &
 	}
 }
 
+void IOLoginDataLoad::loadPlayerWizardData(const std::shared_ptr<Player> &player) {
+	if (!player) {
+		g_logger().warn("[{}] - Player nullptr", __FUNCTION__);
+		return;
+	}
+
+	Database &db = Database::getInstance();
+	if (const auto result = db.storeQuery(fmt::format(
+			"SELECT `magical_power`, `magical_control`, `magical_knowledge`, `skill_combat` FROM `player_wizard_skills` WHERE `player_id` = {}",
+			player->getGUID()
+		))) {
+		player->wizardSkills.magicalPower = result->getNumber<uint16_t>("magical_power");
+		player->wizardSkills.magicalControl = result->getNumber<uint16_t>("magical_control");
+		player->wizardSkills.magicalKnowledge = result->getNumber<uint16_t>("magical_knowledge");
+		player->wizardSkills.skillCombat = result->getNumber<uint16_t>("skill_combat");
+	}
+	player->wizardSkills.magicalPower = player->wizardSkills.getMagicalPower();
+	player->wizardSkills.magicalControl = player->wizardSkills.getMagicalControl();
+	player->wizardSkills.magicalKnowledge = player->wizardSkills.getMagicalKnowledge();
+	player->wizardSkills.skillCombat = player->wizardSkills.getSkillCombat();
+
+	player->clearWizardSpellProgress();
+	if (auto result = db.storeQuery(fmt::format(
+			"SELECT `spell_id`, `knowledge`, `mastery`, `learned`, `uses` FROM `player_wizard_spells` WHERE `player_id` = {}",
+			player->getGUID()
+		))) {
+		do {
+			auto &progress = player->getOrCreateWizardSpellProgress(result->getNumber<uint32_t>("spell_id"));
+			progress.knowledge = std::min<uint16_t>(100, result->getNumber<uint16_t>("knowledge"));
+			progress.mastery = std::min<uint16_t>(100, result->getNumber<uint16_t>("mastery"));
+			progress.learned = result->getNumber<uint16_t>("learned") != 0;
+			progress.uses = result->getNumber<uint64_t>("uses");
+		} while (result->next());
+	}
+}
+
 void IOLoginDataLoad::loadPlayerInventoryItems(const std::shared_ptr<Player> &player, DBResult_ptr result) {
 	if (!result || !player) {
 		g_logger().warn("[{}] - Player or Result nullptr", __FUNCTION__);

@@ -1,0 +1,25 @@
+{
+  "skills": {
+    "min": 1,
+    "max": 100
+  },
+  "mana": {
+    "base": 100,
+    "powerMultiplier": 8,
+    "controlMultiplier": 2,
+    "controlMaxReduction": 0.15,
+    "masteryMaxReduction": 0.10,
+    "maxTotalReduction": 0.25
+  },
+  "recovery": {
+    "defaultMs": 2000,
+    "minimumMs": 1500,
+    "controlMaxReduction": 0.12,
+    "masteryMaxReduction": 0.08,
+    "maxTotalReduction": 0.20
+  },
+  "cast": {
+    "combatSkillMaxReduction": 0.10,
+    "masteryMaxReduction": 0.05
+  }
+}

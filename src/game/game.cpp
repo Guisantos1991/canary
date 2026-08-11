@@ -59,6 +59,7 @@
 #include "server/server.hpp"
 #include "utils/tools.hpp"
 #include "utils/wildcardtree.hpp"
+#include "wizard/spells/wizard_spell_caster.hpp"
 #include "creatures/players/vocations/vocation.hpp"
 #include "creatures/players/components/wheel/wheel_definitions.hpp"
 
@@ -11112,6 +11113,10 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 void Game::parsePlayerExtendedOpcode(uint32_t playerId, uint8_t opcode, const std::string &buffer) {
 	const auto &player = getPlayerByID(playerId);
 	if (!player) {
+		return;
+	}
+	if (opcode == WizardSpellCaster::CAST_EXTENDED_OPCODE) {
+		WizardSpellCaster::handleExtendedOpcode(player, buffer);
 		return;
 	}
 
