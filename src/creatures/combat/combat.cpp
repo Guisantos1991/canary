@@ -46,6 +46,9 @@ namespace {
 	}
 
 	ExpertPvpActionKind getExpertPvpTargetActionKind(const CombatParams &params) {
+		if (params.areaCombat) {
+			return ExpertPvpActionKind::AreaSpell;
+		}
 		switch (params.origin) {
 			case ORIGIN_MELEE:
 			case ORIGIN_RANGED:
@@ -568,6 +571,10 @@ ReturnValue Combat::canDoCombat(const std::shared_ptr<Creature> &attacker, const
 		ret = g_callbacks().dispatchReturnValue(EventCallback_t::creatureOnTargetCombat, attacker, target);
 	}
 	return ret;
+}
+
+bool Combat::canDoCombatTarget(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &target, const CombatParams &params) {
+	return !params.aggressive || (caster != target && canDoCombatWithExpertPvp(caster, target, params.aggressive, getExpertPvpTargetActionKind(params)));
 }
 
 void Combat::setPlayerCombatValues(formulaType_t newFormulaType, double newMina, double newMinb, double newMaxa, double newMaxb) {
@@ -1646,7 +1653,7 @@ void Combat::doCombatHealth(const std::shared_ptr<Creature> &caster, const std::
 }
 
 void Combat::doCombatHealth(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &target, const Position &origin, CombatDamage &damage, const CombatParams &params) {
-	bool canCombat = !params.aggressive || (caster != target && canDoCombatWithExpertPvp(caster, target, params.aggressive, getExpertPvpTargetActionKind(params)));
+	bool canCombat = canDoCombatTarget(caster, target, params);
 	if ((caster && target)
 	    && (caster == target || canCombat)
 	    && (params.impactEffect != CONST_ME_NONE)) {

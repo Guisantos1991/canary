@@ -1,3 +1,0 @@
--- LEGACY/DISABLED: Ignis is loaded from data/wizard/spells.json and executed
--- by WizardSpellCaster. This placeholder prevents the POC instant spell from
--- registering with Canary's creature-target/direction spell system.

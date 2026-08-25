@@ -34,8 +34,8 @@ FROM dependencies AS build
 WORKDIR /srv
 COPY . /srv
 COPY --from=dependencies /opt/vcpkg_installed /srv/vcpkg_installed
-RUN VCPKG_ROOT=/opt/vcpkg VCPKG_FORCE_SYSTEM_BINARIES=1 CMAKE_BUILD_PARALLEL_LEVEL=2 \
-	cmake --preset linux-release -DTOGGLE_BIN_FOLDER=ON -DSPEED_UP_BUILD_UNITY=OFF -DOPTIONS_ENABLE_IPO=OFF -DVCPKG_MANIFEST_INSTALL=OFF -DVCPKG_INSTALLED_DIR=/srv/vcpkg_installed \
+RUN VCPKG_ROOT=/opt/vcpkg VCPKG_FORCE_SYSTEM_BINARIES=1 CMAKE_BUILD_PARALLEL_LEVEL=1 \
+	cmake --preset linux-release -DCMAKE_BUILD_TYPE=Release -DTOGGLE_BIN_FOLDER=ON -DSPEED_UP_BUILD_UNITY=OFF -DOPTIONS_ENABLE_IPO=OFF -DVCPKG_MANIFEST_INSTALL=OFF -DVCPKG_INSTALLED_DIR=/srv/vcpkg_installed \
 	&& cmake --build --preset linux-release
 
 FROM ubuntu:24.04 AS runtime

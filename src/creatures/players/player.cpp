@@ -6761,7 +6761,7 @@ const WizardSkillSnapshot &Player::getWizardSkills() const {
 	return wizardSkills;
 }
 
-void Player::setWizardSkill(const WizardSkill skill, const uint16_t value) {
+void Player::setWizardSkill(const WizardSkill skill, const int32_t value) {
 	wizardSkills.set(skill, value);
 }
 

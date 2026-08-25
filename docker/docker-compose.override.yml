@@ -1,0 +1,6 @@
+services:
+  server:
+    image: wizard-canary-local:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.local

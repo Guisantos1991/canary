@@ -674,6 +674,15 @@ public:
 
 	int32_t getMaxHealth() const override;
 	uint32_t getMaxMana() const override;
+#ifdef BUILD_TESTS
+	void setManaForTesting(uint32_t current, uint32_t maximum) {
+		manaMax = maximum;
+		mana = std::min(current, maximum);
+	}
+	void setVocationForTesting(const std::shared_ptr<Vocation> &testVocation) {
+		vocation = testVocation;
+	}
+#endif
 
 	[[nodiscard]] std::shared_ptr<Item> getInventoryItem(Slots_t slot) const;
 
@@ -811,7 +820,7 @@ public:
 	void changeMana(int32_t manaChange) override;
 
 	[[nodiscard]] const WizardSkillSnapshot &getWizardSkills() const;
-	void setWizardSkill(WizardSkill skill, uint16_t value);
+	void setWizardSkill(WizardSkill skill, int32_t value);
 	[[nodiscard]] bool hasLearnedWizardSpell(uint32_t spellId) const;
 	bool learnWizardSpell(uint32_t spellId);
 	WizardSpellProgress &getOrCreateWizardSpellProgress(uint32_t spellId);

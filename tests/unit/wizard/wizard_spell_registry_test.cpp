@@ -55,3 +55,33 @@ TEST(WizardSpellRegistryTest, RejectsDuplicateIndexesAndInvalidArea) {
 	EXPECT_FALSE(registry.load(writeRegistry(json, "wizard_invalid_area.json").string(), error));
 	EXPECT_NE(error.find("area"), std::string::npos);
 }
+
+TEST(WizardSpellRegistryTest, RejectsDamageForUnsupportedCategories) {
+	for (const std::string category : { "DEFENSIVE", "UTILITY", "CONTROL" }) {
+		auto json = validRegistry();
+		json["spells"][0]["category"] = category;
+		WizardSpellRegistry registry;
+		std::string error;
+		EXPECT_FALSE(registry.load(writeRegistry(json, "wizard_damaging_" + category + ".json").string(), error));
+		EXPECT_NE(error.find("only OFFENSIVE"), std::string::npos) << error;
+	}
+}
+
+TEST(WizardSpellRegistryTest, AcceptsNonDamagingNonOffensiveDefinition) {
+	auto json = validRegistry();
+	json["spells"][0]["category"] = "UTILITY";
+	json["spells"][0]["minPower"] = 0;
+	json["spells"][0]["maxPower"] = 0;
+	WizardSpellRegistry registry;
+	std::string error;
+	EXPECT_TRUE(registry.load(writeRegistry(json, "wizard_utility_no_damage.json").string(), error)) << error;
+}
+
+TEST(WizardSpellRegistryTest, RejectsUnsupportedCustomArea) {
+	auto json = validRegistry();
+	json["spells"][0]["area"]["pattern"] = "CUSTOM";
+	WizardSpellRegistry registry;
+	std::string error;
+	EXPECT_FALSE(registry.load(writeRegistry(json, "wizard_custom_area.json").string(), error));
+	EXPECT_NE(error.find("CUSTOM is unsupported"), std::string::npos) << error;
+}

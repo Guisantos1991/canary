@@ -67,14 +67,22 @@ std::vector<Position> WizardAreaSystem::resolve(
 	const auto required = calculateEffectiveSquares(magicalPower, area.minSquares, area.maxSquares);
 	std::vector<Position> positions;
 	positions.reserve(required);
-	appendPosition(positions, center, 0, 0);
+	if (area.pattern == WizardAreaPattern::CUSTOM) {
+		return positions;
+	}
+	if (area.pattern != WizardAreaPattern::RING) {
+		appendPosition(positions, center, 0, 0);
+	}
+	if (area.pattern == WizardAreaPattern::NONE || positions.size() >= required) {
+		return positions;
+	}
 
 	for (int32_t radius = 1; positions.size() < required; ++radius) {
 		const auto sizeBeforeRadius = positions.size();
 		std::vector<std::pair<int32_t, int32_t>> offsets;
 		switch (area.pattern) {
 			case WizardAreaPattern::NONE:
-				return positions;
+				break;
 			case WizardAreaPattern::CROSS:
 				offsets = { { 0, -radius }, { radius, 0 }, { 0, radius }, { -radius, 0 } };
 				break;
@@ -89,7 +97,6 @@ std::vector<Position> WizardAreaSystem::resolve(
 				break;
 			case WizardAreaPattern::RING:
 			case WizardAreaPattern::CIRCLE:
-			case WizardAreaPattern::CUSTOM:
 				for (int32_t y = -radius; y <= radius; ++y) {
 					for (int32_t x = -radius; x <= radius; ++x) {
 						if (std::max(std::abs(x), std::abs(y)) == radius) {
@@ -98,6 +105,8 @@ std::vector<Position> WizardAreaSystem::resolve(
 					}
 				}
 				break;
+			case WizardAreaPattern::CUSTOM:
+				return positions;
 		}
 
 		for (const auto &[x, y] : offsets) {

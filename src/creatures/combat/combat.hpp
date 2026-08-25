@@ -105,6 +105,7 @@ struct CombatParams {
 	bool targetCasterOrTopMost = false;
 	bool aggressive = true;
 	bool useCharges = false;
+	bool areaCombat = false;
 
 	uint16_t chainEffect = CONST_ME_NONE;
 };
@@ -207,6 +208,7 @@ public:
 	static ReturnValue canTargetCreature(const std::shared_ptr<Player> &attacker, const std::shared_ptr<Creature> &target);
 	static ReturnValue canDoCombat(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Tile> &tile, bool aggressive);
 	static ReturnValue canDoCombat(const std::shared_ptr<Creature> &attacker, const std::shared_ptr<Creature> &target, bool aggressive);
+	static bool canDoCombatTarget(const std::shared_ptr<Creature> &caster, const std::shared_ptr<Creature> &target, const CombatParams &params);
 	static void postCombatEffects(const std::shared_ptr<Creature> &caster, const Position &origin, const Position &pos, const CombatParams &params);
 
 	static void addDistanceEffect(const std::shared_ptr<Creature> &caster, const Position &fromPos, const Position &toPos, uint16_t effect);

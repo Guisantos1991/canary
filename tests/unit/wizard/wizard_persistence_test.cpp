@@ -1,5 +1,8 @@
 #include "wizard/skills/wizard_skill.hpp"
 
+#include <fstream>
+#include <nlohmann/json.hpp>
+
 TEST(WizardPersistenceTest, DefaultPlayerWizardValuesAreStable) {
 	const WizardSkillSnapshot skills;
 	EXPECT_EQ(skills.getMagicalPower(), 1);
@@ -25,4 +28,29 @@ TEST(WizardPersistenceTest, LoadedValuesClampToDomain) {
 	EXPECT_EQ(progress.mastery, 34);
 	EXPECT_TRUE(progress.learned);
 	EXPECT_EQ(progress.uses, 567);
+}
+
+TEST(WizardPersistenceTest, SkillLimitsComeFromProgressionConfiguration) {
+	const auto productionPath = std::string(TESTS_SOURCE_DIR) + "/data/wizard/progression.json";
+	std::ifstream input(productionPath);
+	auto json = nlohmann::json::parse(input);
+	json["skills"]["min"] = 10;
+	json["skills"]["max"] = 50;
+	const auto customPath = std::filesystem::temp_directory_path() / "wizard_progression_custom_limits.json";
+	std::ofstream output(customPath);
+	output << json.dump();
+	output.close();
+
+	auto &config = g_wizardProgression();
+	std::string error;
+	ASSERT_TRUE(config.load(customPath.string(), error)) << error;
+	WizardSkillSnapshot skills;
+	for (const auto skill : { WizardSkill::MAGICAL_POWER, WizardSkill::MAGICAL_CONTROL, WizardSkill::MAGICAL_KNOWLEDGE, WizardSkill::SKILL_COMBAT }) {
+		skills.set(skill, 1);
+		EXPECT_EQ(skills.get(skill), 10);
+		skills.set(skill, 100);
+		EXPECT_EQ(skills.get(skill), 50);
+	}
+
+	ASSERT_TRUE(config.load(productionPath, error)) << error;
 }

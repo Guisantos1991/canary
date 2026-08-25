@@ -1,2 +1,0 @@
--- LEGACY/DISABLED: use the generic admin command `!wlearn ignis` from
--- data/scripts/talkactions/god/wizard_debug.lua.

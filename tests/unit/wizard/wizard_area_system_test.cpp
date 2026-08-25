@@ -31,3 +31,55 @@ TEST(WizardAreaSystemTest, StopsWhenPatternPointsOutsideMapBounds) {
 	ASSERT_EQ(positions.size(), 1);
 	EXPECT_EQ(positions.front(), Position(100, 0, 7));
 }
+
+class WizardDirectionalAreaTest : public ::testing::TestWithParam<std::tuple<WizardAreaPattern, Direction, Position>> { };
+
+TEST_P(WizardDirectionalAreaTest, RotatesNorthGeometryToCasterDirection) {
+	const auto &[pattern, direction, expectedForward] = GetParam();
+	const Position center { 100, 100, 7 };
+	const WizardAreaDefinition area { pattern, 2, 2 };
+	const auto positions = WizardAreaSystem::resolve(area, center, 100, direction);
+	ASSERT_EQ(positions.size(), 2);
+	EXPECT_EQ(positions.front(), center);
+	EXPECT_EQ(positions[1], expectedForward);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+	LineConeWaveAllDirections,
+	WizardDirectionalAreaTest,
+	::testing::Values(
+		std::tuple { WizardAreaPattern::LINE, DIRECTION_NORTH, Position { 100, 99, 7 } },
+		std::tuple { WizardAreaPattern::LINE, DIRECTION_EAST, Position { 101, 100, 7 } },
+		std::tuple { WizardAreaPattern::LINE, DIRECTION_SOUTH, Position { 100, 101, 7 } },
+		std::tuple { WizardAreaPattern::LINE, DIRECTION_WEST, Position { 99, 100, 7 } },
+		std::tuple { WizardAreaPattern::CONE, DIRECTION_NORTH, Position { 99, 99, 7 } },
+		std::tuple { WizardAreaPattern::CONE, DIRECTION_EAST, Position { 101, 99, 7 } },
+		std::tuple { WizardAreaPattern::CONE, DIRECTION_SOUTH, Position { 101, 101, 7 } },
+		std::tuple { WizardAreaPattern::CONE, DIRECTION_WEST, Position { 99, 101, 7 } },
+		std::tuple { WizardAreaPattern::WAVE, DIRECTION_NORTH, Position { 99, 99, 7 } },
+		std::tuple { WizardAreaPattern::WAVE, DIRECTION_EAST, Position { 101, 99, 7 } },
+		std::tuple { WizardAreaPattern::WAVE, DIRECTION_SOUTH, Position { 101, 101, 7 } },
+		std::tuple { WizardAreaPattern::WAVE, DIRECTION_WEST, Position { 99, 101, 7 } }
+	)
+);
+
+TEST(WizardAreaSystemTest, RingExcludesCenterAndIncludesEntirePerimeter) {
+	const Position center { 100, 100, 7 };
+	const WizardAreaDefinition ring { WizardAreaPattern::RING, 8, 8 };
+	const auto positions = WizardAreaSystem::resolve(ring, center, 100);
+	ASSERT_EQ(positions.size(), 8);
+	EXPECT_EQ(std::ranges::find(positions, center), positions.end());
+	for (int32_t y = -1; y <= 1; ++y) {
+		for (int32_t x = -1; x <= 1; ++x) {
+			if (x == 0 && y == 0) {
+				continue;
+			}
+			EXPECT_NE(std::ranges::find(positions, Position { static_cast<uint16_t>(100 + x), static_cast<uint16_t>(100 + y), 7 }), positions.end());
+		}
+	}
+}
+
+TEST(WizardAreaSystemTest, CustomDoesNotSilentlyResolveAsCircle) {
+	const WizardAreaDefinition custom { WizardAreaPattern::CUSTOM, 3, 12 };
+	EXPECT_TRUE(WizardAreaSystem::resolve(custom, Position { 100, 100, 7 }, 100).empty());
+}

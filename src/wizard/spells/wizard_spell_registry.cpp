@@ -83,8 +83,18 @@ namespace {
 		if (spell.minPower < 0 || spell.maxPower < spell.minPower) {
 			throw std::runtime_error("minPower/maxPower damage range is invalid");
 		}
+		if (spell.category == WizardSpellCategory::OFFENSIVE) {
+			if (spell.minPower <= 0 || spell.maxPower <= 0) {
+				throw std::runtime_error("OFFENSIVE spells require a positive minPower/maxPower damage range");
+			}
+		} else if (spell.minPower != 0 || spell.maxPower != 0) {
+			throw std::runtime_error("only OFFENSIVE spells may define minPower/maxPower damage");
+		}
 		if (spell.area.minSquares == 0 || spell.area.maxSquares == 0 || spell.area.minSquares > spell.area.maxSquares) {
 			throw std::runtime_error("area requires 1 <= minSquares <= maxSquares");
+		}
+		if (spell.area.pattern == WizardAreaPattern::CUSTOM) {
+			throw std::runtime_error("area.pattern CUSTOM is unsupported until a custom pattern is defined");
 		}
 		if (spell.requiredKnowledge > 100 || spell.difficulty > 100) {
 			throw std::runtime_error("difficulty and requiredKnowledge must be in 0..100");

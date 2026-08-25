@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstdint>
 
+#include "wizard/progression/wizard_progression_config.hpp"
+
 enum class WizardSkill : uint8_t {
 	MAGICAL_POWER,
 	MAGICAL_CONTROL,
@@ -16,20 +18,25 @@ struct WizardSkillSnapshot {
 	uint16_t magicalKnowledge = 1;
 	uint16_t skillCombat = 1;
 
+	[[nodiscard]] static uint16_t normalize(const int32_t value) {
+		const auto &limits = g_wizardProgression().get().skills;
+		return static_cast<uint16_t>(std::clamp<int32_t>(value, limits.min, limits.max));
+	}
+
 	[[nodiscard]] uint16_t getMagicalPower() const {
-		return std::clamp<uint16_t>(magicalPower, 1, 100);
+		return normalize(magicalPower);
 	}
 
 	[[nodiscard]] uint16_t getMagicalControl() const {
-		return std::clamp<uint16_t>(magicalControl, 1, 100);
+		return normalize(magicalControl);
 	}
 
 	[[nodiscard]] uint16_t getMagicalKnowledge() const {
-		return std::clamp<uint16_t>(magicalKnowledge, 1, 100);
+		return normalize(magicalKnowledge);
 	}
 
 	[[nodiscard]] uint16_t getSkillCombat() const {
-		return std::clamp<uint16_t>(skillCombat, 1, 100);
+		return normalize(skillCombat);
 	}
 
 	[[nodiscard]] uint16_t get(WizardSkill skill) const {
@@ -46,20 +53,20 @@ struct WizardSkillSnapshot {
 		return 1;
 	}
 
-	void set(WizardSkill skill, uint16_t value) {
-		value = std::clamp<uint16_t>(value, 1, 100);
+	void set(WizardSkill skill, int32_t value) {
+		const auto normalized = normalize(value);
 		switch (skill) {
 			case WizardSkill::MAGICAL_POWER:
-				magicalPower = value;
+				magicalPower = normalized;
 				break;
 			case WizardSkill::MAGICAL_CONTROL:
-				magicalControl = value;
+				magicalControl = normalized;
 				break;
 			case WizardSkill::MAGICAL_KNOWLEDGE:
-				magicalKnowledge = value;
+				magicalKnowledge = normalized;
 				break;
 			case WizardSkill::SKILL_COMBAT:
-				skillCombat = value;
+				skillCombat = normalized;
 				break;
 		}
 	}

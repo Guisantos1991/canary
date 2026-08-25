@@ -62,7 +62,8 @@ namespace {
 		}
 		return filter.find("RepositoryDBTest") != std::string::npos
 			|| filter.find("AccountRepositoryDBTest") != std::string::npos
-			|| filter.find("PlayerStorageRepositoryDBTest") != std::string::npos;
+			|| filter.find("PlayerStorageRepositoryDBTest") != std::string::npos
+			|| filter.find("WizardPersistenceDBTest") != std::string::npos;
 	}
 
 	std::string detectConfigFile(const std::filesystem::path &repoRoot) {

@@ -3531,7 +3531,7 @@ int PlayerFunctions::luaPlayerSetWizardSkill(lua_State* L) {
 		return 1;
 	}
 	const auto name = asLowerCaseString(Lua::getString(L, 2));
-	const auto value = Lua::getNumber<uint16_t>(L, 3);
+	const auto value = Lua::getNumber<int32_t>(L, 3);
 	if (name == "power") {
 		player->setWizardSkill(WizardSkill::MAGICAL_POWER, value);
 	} else if (name == "control") {

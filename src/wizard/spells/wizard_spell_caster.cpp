@@ -67,6 +67,16 @@ namespace {
 			|| player->hasCondition(CONDITION_FEARED) || player->hasCondition(CONDITION_PACIFIED);
 	}
 
+	bool offensiveCastBlockedByProtectionZone(const std::shared_ptr<Player> &player, const WizardSpellDefinition &spell) {
+		return spell.category == WizardSpellCategory::OFFENSIVE
+			&& !player->hasFlag(PlayerFlags_t::IgnoreProtectionZone)
+			&& player->getZoneType() == ZONE_PROTECTION;
+	}
+
+	bool hasEnoughMana(const std::shared_ptr<Player> &player, const uint32_t manaCost) {
+		return player->hasFlag(PlayerFlags_t::HasInfiniteMana) || player->getMana() >= manaCost;
+	}
+
 	WizardTargetValidationResult validateTarget(
 		const std::shared_ptr<Player> &player,
 		const WizardSpellDefinition &spell,
@@ -142,6 +152,10 @@ bool WizardSpellCaster::cast(const std::shared_ptr<Player> &player, const uint32
 		sendFailure(player, "You cannot cast right now.");
 		return false;
 	}
+	if (offensiveCastBlockedByProtectionZone(player, *spell)) {
+		sendFailure(player, "You cannot cast an offensive spell from a protection zone.");
+		return false;
+	}
 
 	const auto now = OTSYS_TIME();
 	if (player->getWizardRecoveryUntil() > now) {
@@ -154,7 +168,7 @@ bool WizardSpellCaster::cast(const std::shared_ptr<Player> &player, const uint32
 	}
 	const auto &config = g_wizardProgression().get();
 	const uint32_t manaCost = WizardManaSystem::calculateSpellManaCost(spell->manaCost, player->getWizardSkills().getMagicalControl(), progress->mastery, config.mana);
-	if (player->getMana() < manaCost) {
+	if (!hasEnoughMana(player, manaCost)) {
 		sendFailure(player, "You do not have enough mana.");
 		return false;
 	}
@@ -189,6 +203,10 @@ void WizardSpellCaster::executeCast(const uint32_t playerId, const uint32_t spel
 		abortCast("You cannot cast right now.");
 		return;
 	}
+	if (offensiveCastBlockedByProtectionZone(player, *spell)) {
+		abortCast("You cannot cast an offensive spell from a protection zone.");
+		return;
+	}
 
 	const Position resolvedTarget = spell->targetType == WizardTargetType::SELF ? player->getPosition() : targetPosition;
 	const auto requestedTarget = std::optional<Position> { resolvedTarget };
@@ -206,7 +224,7 @@ void WizardSpellCaster::executeCast(const uint32_t playerId, const uint32_t spel
 	auto &progress = player->getOrCreateWizardSpellProgress(spellId);
 	const auto &config = g_wizardProgression().get();
 	const uint32_t manaCost = WizardManaSystem::calculateSpellManaCost(spell->manaCost, player->getWizardSkills().getMagicalControl(), progress.mastery, config.mana);
-	if (player->getMana() < manaCost) {
+	if (!hasEnoughMana(player, manaCost)) {
 		abortCast("The spell failed because your mana changed during casting.");
 		return;
 	}
@@ -224,51 +242,86 @@ void WizardSpellCaster::executeCast(const uint32_t playerId, const uint32_t spel
 	const auto power = player->getWizardSkills().getMagicalPower();
 	const auto combat = player->getWizardSkills().getSkillCombat();
 	const auto mastery = progress.mastery;
+	const auto direction = player->getDirection();
 	if (spell->projectile.travelTimeMs == 0) {
-		impact(playerId, spellId, resolvedTarget, power, combat, mastery);
+		impact(playerId, spellId, resolvedTarget, direction, power, combat, mastery);
 	} else {
-		g_dispatcher().scheduleEvent(spell->projectile.travelTimeMs, [playerId, spellId, resolvedTarget, power, combat, mastery] {
-			WizardSpellCaster::impact(playerId, spellId, resolvedTarget, power, combat, mastery);
+		g_dispatcher().scheduleEvent(spell->projectile.travelTimeMs, [playerId, spellId, resolvedTarget, direction, power, combat, mastery] {
+			WizardSpellCaster::impact(playerId, spellId, resolvedTarget, direction, power, combat, mastery);
 		}, "WizardSpellCaster::impact");
 	}
 }
 
-void WizardSpellCaster::impact(const uint32_t playerId, const uint32_t spellId, const Position targetPosition, const uint16_t magicalPower, const uint16_t skillCombat, const uint16_t mastery) {
+void WizardSpellCaster::impact(const uint32_t playerId, const uint32_t spellId, const Position targetPosition, const Direction direction, const uint16_t magicalPower, const uint16_t skillCombat, const uint16_t mastery) {
 	const auto player = g_game().getPlayerByID(playerId);
 	const auto* spell = g_wizardSpells().getById(spellId);
-	if (!player || !spell) {
+	if (!player || !spell || spell->category != WizardSpellCategory::OFFENSIVE) {
 		return;
 	}
 	CombatParams combatParams;
 	combatParams.combatType = combatTypeForElement(spell->element);
 	combatParams.origin = ORIGIN_SPELL;
-	combatParams.aggressive = spell->category == WizardSpellCategory::OFFENSIVE;
+	combatParams.aggressive = true;
+	combatParams.areaCombat = true;
 
-	for (const auto &position : WizardAreaSystem::resolve(spell->area, targetPosition, magicalPower)) {
+	const auto affectedTargets = collectImpactTargets(player, *spell, targetPosition, direction, magicalPower);
+	const auto affected = affectedTargets.size();
+	for (const auto &target : affectedTargets) {
+		CombatDamage damage;
+		damage.origin = ORIGIN_SPELL;
+		damage.primary.type = combatParams.combatType;
+		damage.primary.value = -calculateDamage(*spell, magicalPower, skillCombat, mastery);
+		setAffectedCount(damage, affected);
+		damage.instantSpellName = spell->name;
+		Combat::doCombatHealth(player, target, damage, combatParams);
+	}
+}
+
+std::vector<std::shared_ptr<Creature>> WizardSpellCaster::collectImpactTargets(const std::shared_ptr<Player> &player, const WizardSpellDefinition &spell, const Position targetPosition, const Direction direction, const uint16_t magicalPower) {
+	CombatParams combatParams;
+	combatParams.combatType = combatTypeForElement(spell.element);
+	combatParams.origin = ORIGIN_SPELL;
+	combatParams.aggressive = true;
+	combatParams.areaCombat = true;
+
+	for (const auto &position : WizardAreaSystem::resolve(spell.area, targetPosition, magicalPower, direction)) {
 		const auto tile = g_game().map.getTile(position);
-		if (!tile || Combat::canDoCombat(player, tile, spell->category == WizardSpellCategory::OFFENSIVE) != RETURNVALUE_NOERROR) {
+		if (!tile || Combat::canDoCombat(player, tile, true) != RETURNVALUE_NOERROR) {
 			continue;
 		}
-		if (spell->impactEffect != 0) {
-			g_game().addMagicEffect(position, spell->impactEffect, player);
+		if (spell.impactEffect != 0) {
+			g_game().addMagicEffect(position, spell.impactEffect, player);
 		}
-		const auto* creatures = tile->getCreatures();
+	}
+
+	std::vector<std::shared_ptr<Creature>> affectedTargets;
+	for (const auto &target : resolveImpactOccupants(spell, targetPosition, direction, magicalPower)) {
+		const auto tile = target ? target->getTile() : nullptr;
+		if (!target || target == player || !tile
+		    || Combat::canDoCombat(player, tile, true) != RETURNVALUE_NOERROR
+		    || !Combat::canDoCombatTarget(player, target, combatParams)) {
+			continue;
+		}
+		affectedTargets.emplace_back(target);
+	}
+	return affectedTargets;
+}
+
+std::vector<std::shared_ptr<Creature>> WizardSpellCaster::resolveImpactOccupants(const WizardSpellDefinition &spell, const Position targetPosition, const Direction direction, const uint16_t magicalPower) {
+	std::vector<std::shared_ptr<Creature>> occupants;
+	for (const auto &position : WizardAreaSystem::resolve(spell.area, targetPosition, magicalPower, direction)) {
+		const auto tile = g_game().map.getTile(position);
+		const auto* creatures = tile ? tile->getCreatures() : nullptr;
 		if (!creatures) {
 			continue;
 		}
-		const CreatureVector occupants = *creatures;
-		for (const auto &target : occupants) {
-			if (!target || target == player) {
-				continue;
-			}
-			CombatDamage damage;
-			damage.origin = ORIGIN_SPELL;
-			damage.primary.type = combatParams.combatType;
-			damage.primary.value = -calculateDamage(*spell, magicalPower, skillCombat, mastery);
-			damage.instantSpellName = spell->name;
-			Combat::doCombatHealth(player, target, damage, combatParams);
-		}
+		occupants.insert(occupants.end(), creatures->begin(), creatures->end());
 	}
+	return occupants;
+}
+
+void WizardSpellCaster::setAffectedCount(CombatDamage &damage, const std::size_t affected) {
+	damage.affected = static_cast<int>(affected);
 }
 
 void WizardSpellCaster::sendFailure(const std::shared_ptr<Player> &player, const std::string &message) {

@@ -15,9 +15,13 @@
 int main(int argc, char** argv) {
 	::testing::InitGoogleTest(&argc, argv);
 
-	static di::extension::injector<> injector {};
-	InMemoryLogger::install(injector);
-	DI::setTestContainer(&injector);
+	// The injected singletons reference each other during destruction (for
+	// example Game owns Lua script interfaces which request LuaEnvironment).
+	// Keep the test container alive until process termination so its unordered
+	// singleton storage is never partially torn down underneath a destructor.
+	auto* injector = new di::extension::injector<>();
+	InMemoryLogger::install(*injector);
+	DI::setTestContainer(injector);
 
 	(void)g_logger();
 	(void)g_configManager();

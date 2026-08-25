@@ -222,7 +222,10 @@ class TestDatabase final {
 			return true;
 		}
 
-		const auto hasPlayerComment = queryHasRows(handle.get(), fmt::format("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = '{}' AND TABLE_NAME = 'players' AND COLUMN_NAME = 'comment' AND COLUMN_TYPE = 'varchar(255)' AND IS_NULLABLE = 'NO' AND COLUMN_DEFAULT = ''", escapedDatabase));
+		// MariaDB 11 exposes a string default as its SQL literal (''), while
+		// older MySQL/MariaDB versions expose the decoded empty string. Accept
+		// both representations so a current schema is not reset indefinitely.
+		const auto hasPlayerComment = queryHasRows(handle.get(), fmt::format("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = '{}' AND TABLE_NAME = 'players' AND COLUMN_NAME = 'comment' AND COLUMN_TYPE = 'varchar(255)' AND IS_NULLABLE = 'NO' AND HEX(COALESCE(COLUMN_DEFAULT, '')) IN ('', '2727')", escapedDatabase));
 
 		return !hasPlayerComment;
 	}
