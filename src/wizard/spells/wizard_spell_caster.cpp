@@ -15,6 +15,10 @@
 
 #include <nlohmann/json.hpp>
 
+#ifndef USE_PRECOMPILED_HEADERS
+	#include <limits>
+#endif
+
 namespace {
 	std::string targetError(const WizardTargetValidationResult result) {
 		switch (result) {
@@ -103,23 +107,50 @@ namespace {
 	}
 }
 
-bool WizardSpellCaster::handleExtendedOpcode(const std::shared_ptr<Player> &player, const std::string &buffer) {
+std::optional<WizardCastRequest> WizardSpellCaster::parseCastRequest(const std::string &buffer, std::string &error) {
 	try {
 		const auto request = nlohmann::json::parse(buffer);
-		const auto spellId = request.at("spellId").get<uint32_t>();
-		const Position target {
+		if (!request.is_object() || request.size() != 4
+		    || !request.contains("spellId") || !request.contains("x")
+		    || !request.contains("y") || !request.contains("z")) {
+			error = "request must contain only spellId, x, y, and z";
+			return std::nullopt;
+		}
+		const auto validUnsigned = [&request](const char* field, const uint64_t maximum) {
+			return request.at(field).is_number_unsigned() && request.at(field).get<uint64_t>() <= maximum;
+		};
+		if (!validUnsigned("spellId", std::numeric_limits<uint32_t>::max())
+		    || !validUnsigned("x", std::numeric_limits<uint16_t>::max())
+		    || !validUnsigned("y", std::numeric_limits<uint16_t>::max())
+		    || !validUnsigned("z", std::numeric_limits<uint8_t>::max())) {
+			error = "spellId or position is outside the unsigned protocol range";
+			return std::nullopt;
+		}
+		WizardCastRequest castRequest;
+		castRequest.spellId = request.at("spellId").get<uint32_t>();
+		castRequest.targetPosition = Position {
 			request.at("x").get<uint16_t>(),
 			request.at("y").get<uint16_t>(),
 			request.at("z").get<uint8_t>()
 		};
-		return cast(player, spellId, target);
+		return castRequest;
 	} catch (const std::exception &exception) {
-		g_logger().warn("[WizardMagic] Invalid cast request from player {}: {}", player ? player->getName() : "unknown", exception.what());
+		error = exception.what();
+		return std::nullopt;
+	}
+}
+
+bool WizardSpellCaster::handleExtendedOpcode(const std::shared_ptr<Player> &player, const std::string &buffer) {
+	std::string error;
+	const auto request = parseCastRequest(buffer, error);
+	if (!request) {
+		g_logger().warn("[WizardMagic] Invalid cast request from player {}: {}", player ? player->getName() : "unknown", error);
 		if (player) {
 			sendFailure(player, "Invalid wizard cast request.");
 		}
 		return false;
 	}
+	return cast(player, request->spellId, request->targetPosition);
 }
 
 bool WizardSpellCaster::cast(const std::shared_ptr<Player> &player, const uint32_t spellId, const std::optional<Position> &targetPosition) {

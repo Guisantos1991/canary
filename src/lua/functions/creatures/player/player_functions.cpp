@@ -31,6 +31,10 @@
 #include "map/spectators.hpp"
 #include "kv/kv.hpp"
 #include "creatures/players/components/wheel/wheel_definitions.hpp"
+#include "wizard/combat/wizard_area_system.hpp"
+#include "wizard/exhaustion/wizard_exhaustion_system.hpp"
+#include "wizard/mana/wizard_mana_system.hpp"
+#include "wizard/progression/wizard_progression_config.hpp"
 #include "wizard/spells/wizard_spell_registry.hpp"
 #include "utils/tools.hpp"
 
@@ -3579,13 +3583,36 @@ int PlayerFunctions::luaPlayerGetWizardSpellInfo(lua_State* L) {
 		return 1;
 	}
 	const auto* progress = player->getWizardSpellProgress(spell->id);
-	lua_createtable(L, 0, 6);
+	const auto mastery = progress ? progress->mastery : 0;
+	const auto &skills = player->getWizardSkills();
+	const auto &config = g_wizardProgression().get();
+	const Position previewCenter { 32767, 32767, player->getPosition().z };
+	const auto areaPositions = WizardAreaSystem::resolve(spell->area, previewCenter, skills.getMagicalPower(), player->getDirection());
+
+	lua_createtable(L, 0, 14);
 	Lua::setField(L, "id", spell->id);
 	Lua::setField(L, "name", spell->name);
 	Lua::setField(L, "incantation", spell->incantation);
 	Lua::setField(L, "learned", progress && progress->learned);
 	Lua::setField(L, "knowledge", progress ? progress->knowledge : 0);
-	Lua::setField(L, "mastery", progress ? progress->mastery : 0);
+	Lua::setField(L, "mastery", mastery);
+	Lua::setField(L, "range", spell->range);
+	Lua::setField(L, "baseMana", spell->manaCost);
+	Lua::setField(L, "finalMana", WizardManaSystem::calculateSpellManaCost(spell->manaCost, skills.getMagicalControl(), mastery, config.mana));
+	Lua::setField(L, "castTime", WizardExhaustionSystem::calculateCastTime(spell->castTimeMs, skills.getSkillCombat(), mastery, config.cast));
+	Lua::setField(L, "recovery", WizardExhaustionSystem::calculateRecovery(spell->recoveryTimeMs, skills.getMagicalControl(), mastery, config.recovery));
+	Lua::setField(L, "cooldown", spell->cooldownMs);
+	Lua::setField(L, "effectiveSquares", areaPositions.size());
+
+	lua_createtable(L, static_cast<int>(areaPositions.size()), 0);
+	int index = 0;
+	for (const auto &position : areaPositions) {
+		lua_createtable(L, 0, 2);
+		Lua::setField(L, "x", static_cast<int32_t>(position.x) - previewCenter.x);
+		Lua::setField(L, "y", static_cast<int32_t>(position.y) - previewCenter.y);
+		lua_rawseti(L, -2, ++index);
+	}
+	lua_setfield(L, -2, "areaOffsets");
 	return 1;
 }
 

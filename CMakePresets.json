@@ -183,6 +183,7 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "DEBUG_LOG": "ON",
         "BUILD_STATIC_LIBRARY": "OFF",
+        "OPTIONS_ENABLE_IPO": "OFF",
         "SPEED_UP_BUILD_UNITY": "OFF",
         "VCPKG_HOST_TRIPLET": "arm64-osx",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg_installed/arm64-osx-tests",

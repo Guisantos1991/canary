@@ -28,7 +28,18 @@ function armSpell.onSay(player, words, param)
 		player:sendCancelMessage("You have not learned " .. info.name .. ".")
 		return true
 	end
-	player:sendExtendedOpcode(91, json.encode({ spellId = info.id, name = info.name }))
+	player:sendExtendedOpcode(91, json.encode({
+		spellId = info.id,
+		name = info.name,
+		range = info.range,
+		baseMana = info.baseMana,
+		finalMana = info.finalMana,
+		castTime = info.castTime,
+		recovery = info.recovery,
+		cooldown = info.cooldown,
+		effectiveSquares = info.effectiveSquares,
+		areaOffsets = info.areaOffsets,
+	}))
 	return true
 end
 

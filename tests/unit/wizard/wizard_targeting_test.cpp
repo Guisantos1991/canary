@@ -1,4 +1,27 @@
+#include "wizard/spells/wizard_spell_caster.hpp"
 #include "wizard/spells/wizard_targeting_validator.hpp"
+
+TEST(WizardTargetingTest, CastProtocolSerializesSpellAndPositionWithoutCreatureId) {
+	std::string error;
+	const auto request = WizardSpellCaster::parseCastRequest(R"({"spellId":9001,"x":104,"y":100,"z":7})", error);
+	ASSERT_TRUE(request) << error;
+	EXPECT_EQ(request->spellId, 9001);
+	EXPECT_EQ(request->targetPosition, (Position { 104, 100, 7 }));
+}
+
+TEST(WizardTargetingTest, CastProtocolRejectsCreatureIdAndInvalidPositionRequests) {
+	std::string error;
+	EXPECT_FALSE(WizardSpellCaster::parseCastRequest(R"({"spellId":9001,"x":104,"y":100,"z":7,"creatureId":42})", error));
+	EXPECT_FALSE(error.empty());
+
+	error.clear();
+	EXPECT_FALSE(WizardSpellCaster::parseCastRequest(R"({"spellId":9001,"x":104,"z":7})", error));
+	EXPECT_FALSE(error.empty());
+
+	error.clear();
+	EXPECT_FALSE(WizardSpellCaster::parseCastRequest(R"({"spellId":9001,"x":70000,"y":100,"z":7})", error));
+	EXPECT_FALSE(error.empty());
+}
 
 TEST(WizardTargetingTest, TileSpellRequiresPositionAndNeverRequiresCreatureId) {
 	const Position caster { 100, 100, 7 };

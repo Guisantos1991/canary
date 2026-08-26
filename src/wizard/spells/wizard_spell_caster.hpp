@@ -13,10 +13,16 @@ class Player;
 class Creature;
 struct WizardSpellDefinition;
 
+struct WizardCastRequest {
+	uint32_t spellId = 0;
+	Position targetPosition;
+};
+
 class WizardSpellCaster {
 public:
 	static constexpr uint8_t CAST_EXTENDED_OPCODE = 90;
 
+	static std::optional<WizardCastRequest> parseCastRequest(const std::string &buffer, std::string &error);
 	static bool handleExtendedOpcode(const std::shared_ptr<Player> &player, const std::string &buffer);
 	static bool cast(const std::shared_ptr<Player> &player, uint32_t spellId, const std::optional<Position> &targetPosition);
 

@@ -4,3 +4,6 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.local
+    volumes:
+      - ../data/wizard:/canary/data/wizard:ro
+      - ../data/scripts:/canary/data/scripts:ro
