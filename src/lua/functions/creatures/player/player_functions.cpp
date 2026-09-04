@@ -35,7 +35,17 @@
 #include "wizard/exhaustion/wizard_exhaustion_system.hpp"
 #include "wizard/mana/wizard_mana_system.hpp"
 #include "wizard/progression/wizard_progression_config.hpp"
+#include "wizard/progression/wizard_knowledge_system.hpp"
+#include "wizard/progression/wizard_learning_system.hpp"
+#include "wizard/progression/wizard_mastery_system.hpp"
+#include "wizard/potions/wizard_brewing_mastery_system.hpp"
+#include "wizard/potions/wizard_brewing_system.hpp"
+#include "wizard/potions/wizard_potion_registry.hpp"
+#include "wizard/potions/wizard_recipe_knowledge_system.hpp"
+#include "wizard/potions/wizard_recipe_learning_system.hpp"
 #include "wizard/spells/wizard_spell_registry.hpp"
+#include "wizard/discovery/wizard_discovery_registry.hpp"
+#include "wizard/discovery/wizard_discovery_system.hpp"
 #include "utils/tools.hpp"
 
 #include "enums/account_coins.hpp"
@@ -349,7 +359,20 @@ void PlayerFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Player", "getWizardSkill", PlayerFunctions::luaPlayerGetWizardSkill);
 	Lua::registerMethod(L, "Player", "setWizardSkill", PlayerFunctions::luaPlayerSetWizardSkill);
 	Lua::registerMethod(L, "Player", "learnWizardSpell", PlayerFunctions::luaPlayerLearnWizardSpell);
+	Lua::registerMethod(L, "Player", "tryLearnWizardSpell", PlayerFunctions::luaPlayerTryLearnWizardSpell);
+	Lua::registerMethod(L, "Player", "setWizardSpellKnowledge", PlayerFunctions::luaPlayerSetWizardSpellKnowledge);
+	Lua::registerMethod(L, "Player", "setWizardSpellMastery", PlayerFunctions::luaPlayerSetWizardSpellMastery);
 	Lua::registerMethod(L, "Player", "getWizardSpellInfo", PlayerFunctions::luaPlayerGetWizardSpellInfo);
+	Lua::registerMethod(L, "Player", "tryLearnWizardRecipe", PlayerFunctions::luaPlayerTryLearnWizardRecipe);
+	Lua::registerMethod(L, "Player", "setWizardRecipeKnowledge", PlayerFunctions::luaPlayerSetWizardRecipeKnowledge);
+	Lua::registerMethod(L, "Player", "setWizardRecipeMastery", PlayerFunctions::luaPlayerSetWizardRecipeMastery);
+	Lua::registerMethod(L, "Player", "getWizardRecipeInfo", PlayerFunctions::luaPlayerGetWizardRecipeInfo);
+	Lua::registerMethod(L, "Player", "brewWizardRecipeForTest", PlayerFunctions::luaPlayerBrewWizardRecipeForTest);
+	Lua::registerMethod(L, "Player", "getWizardDiscoveryInfo", PlayerFunctions::luaPlayerGetWizardDiscoveryInfo);
+	Lua::registerMethod(L, "Player", "getWizardDiscoveries", PlayerFunctions::luaPlayerGetWizardDiscoveries);
+	Lua::registerMethod(L, "Player", "assignWizardDiscovery", PlayerFunctions::luaPlayerAssignWizardDiscovery);
+	Lua::registerMethod(L, "Player", "discoverWizardDiscovery", PlayerFunctions::luaPlayerDiscoverWizardDiscovery);
+	Lua::registerMethod(L, "Player", "resetWizardDiscovery", PlayerFunctions::luaPlayerResetWizardDiscovery);
 
 	Lua::registerMethod(L, "Player", "applyImbuementScroll", PlayerFunctions::luaPlayerApplyImbuementScroll);
 	Lua::registerMethod(L, "Player", "openImbuementWindow", PlayerFunctions::luaPlayerOpenImbuementWindow);
@@ -3567,6 +3590,46 @@ int PlayerFunctions::luaPlayerLearnWizardSpell(lua_State* L) {
 	return 1;
 }
 
+int PlayerFunctions::luaPlayerTryLearnWizardSpell(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	const auto query = Lua::getString(L, 2);
+	const auto* spell = g_wizardSpells().getByName(query) ? g_wizardSpells().getByName(query) : g_wizardSpells().getByIncantation(query);
+	const auto result = WizardLearningSystem::learn(player, spell ? spell->id : 0);
+	const char* name = "SPELL_NOT_FOUND";
+	switch (result) {
+		case WizardLearningResult::SPELL_NOT_FOUND: break;
+		case WizardLearningResult::ALREADY_LEARNED: name = "ALREADY_LEARNED"; break;
+		case WizardLearningResult::INSUFFICIENT_SPELL_KNOWLEDGE: name = "INSUFFICIENT_SPELL_KNOWLEDGE"; break;
+		case WizardLearningResult::INSUFFICIENT_MAGICAL_KNOWLEDGE: name = "INSUFFICIENT_MAGICAL_KNOWLEDGE"; break;
+		case WizardLearningResult::SOURCE_REQUIREMENT_NOT_MET: name = "SOURCE_REQUIREMENT_NOT_MET"; break;
+		case WizardLearningResult::NOT_LEARNABLE: name = "NOT_LEARNABLE"; break;
+		case WizardLearningResult::SUCCESS: name = "SUCCESS"; break;
+	}
+	Lua::pushString(L, name);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetWizardSpellKnowledge(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	const auto query = Lua::getString(L, 2);
+	const auto* spell = g_wizardSpells().getByName(query) ? g_wizardSpells().getByName(query) : g_wizardSpells().getByIncantation(query);
+	WizardKnowledgeSource source;
+	if (!parseWizardKnowledgeSource(Lua::getString(L, 4, "ADMIN"), source)) { Lua::pushBoolean(L, false); return 1; }
+	Lua::pushBoolean(L, spell && WizardKnowledgeSystem::setKnowledge(player, spell->id, Lua::getNumber<int32_t>(L, 3), source) == WizardKnowledgeResult::SUCCESS);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetWizardSpellMastery(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	const auto query = Lua::getString(L, 2);
+	const auto* spell = g_wizardSpells().getByName(query) ? g_wizardSpells().getByName(query) : g_wizardSpells().getByIncantation(query);
+	Lua::pushBoolean(L, spell && WizardMasterySystem::setMastery(player, spell->id, Lua::getNumber<int32_t>(L, 3)));
+	return 1;
+}
+
 int PlayerFunctions::luaPlayerGetWizardSpellInfo(lua_State* L) {
 	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
 	if (!player) {
@@ -3589,13 +3652,20 @@ int PlayerFunctions::luaPlayerGetWizardSpellInfo(lua_State* L) {
 	const Position previewCenter { 32767, 32767, player->getPosition().z };
 	const auto areaPositions = WizardAreaSystem::resolve(spell->area, previewCenter, skills.getMagicalPower(), player->getDirection());
 
-	lua_createtable(L, 0, 14);
+	lua_createtable(L, 0, 23);
 	Lua::setField(L, "id", spell->id);
 	Lua::setField(L, "name", spell->name);
 	Lua::setField(L, "incantation", spell->incantation);
 	Lua::setField(L, "learned", progress && progress->learned);
 	Lua::setField(L, "knowledge", progress ? progress->knowledge : 0);
+	Lua::setField(L, "knowledgeRequired", spell->progression.knowledgeRequired);
+	Lua::setField(L, "magicalKnowledge", skills.getMagicalKnowledge());
+	Lua::setField(L, "magicalKnowledgeRequired", spell->progression.magicalKnowledgeRequired);
+	Lua::setField(L, "acquisitionProfile", wizardAcquisitionProfileName(spell->progression.acquisitionProfile));
+	Lua::setField(L, "learnable", WizardLearningSystem::isLearnable(player, spell->id));
 	Lua::setField(L, "mastery", mastery);
+	Lua::setField(L, "masteryXp", progress ? progress->masteryXp : 0);
+	Lua::setField(L, "uses", progress ? progress->uses : 0);
 	Lua::setField(L, "range", spell->range);
 	Lua::setField(L, "baseMana", spell->manaCost);
 	Lua::setField(L, "finalMana", WizardManaSystem::calculateSpellManaCost(spell->manaCost, skills.getMagicalControl(), mastery, config.mana));
@@ -3613,6 +3683,148 @@ int PlayerFunctions::luaPlayerGetWizardSpellInfo(lua_State* L) {
 		lua_rawseti(L, -2, ++index);
 	}
 	lua_setfield(L, -2, "areaOffsets");
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerTryLearnWizardRecipe(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	const auto* recipe = g_wizardPotions().getByName(Lua::getString(L, 2));
+	const auto result = WizardRecipeLearningSystem::learn(player, recipe ? recipe->id : 0);
+	const char* name = "RECIPE_NOT_FOUND";
+	switch (result) {
+		case WizardRecipeLearningResult::RECIPE_NOT_FOUND: break;
+		case WizardRecipeLearningResult::ALREADY_LEARNED: name = "ALREADY_LEARNED"; break;
+		case WizardRecipeLearningResult::INSUFFICIENT_RECIPE_KNOWLEDGE: name = "INSUFFICIENT_RECIPE_KNOWLEDGE"; break;
+		case WizardRecipeLearningResult::INSUFFICIENT_MAGICAL_KNOWLEDGE: name = "INSUFFICIENT_MAGICAL_KNOWLEDGE"; break;
+		case WizardRecipeLearningResult::SOURCE_REQUIREMENT_NOT_MET: name = "SOURCE_REQUIREMENT_NOT_MET"; break;
+		case WizardRecipeLearningResult::SUCCESS: name = "SUCCESS"; break;
+	}
+	Lua::pushString(L, name);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetWizardRecipeKnowledge(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	const auto* recipe = g_wizardPotions().getByName(Lua::getString(L, 2));
+	WizardKnowledgeSource source;
+	if (!parseWizardKnowledgeSource(Lua::getString(L, 4, "ADMIN"), source)) { Lua::pushBoolean(L, false); return 1; }
+	Lua::pushBoolean(L, recipe && WizardRecipeKnowledgeSystem::setKnowledge(player, recipe->id, Lua::getNumber<int32_t>(L, 3), source) == WizardRecipeKnowledgeResult::SUCCESS);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerSetWizardRecipeMastery(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	const auto* recipe = g_wizardPotions().getByName(Lua::getString(L, 2));
+	Lua::pushBoolean(L, recipe && WizardBrewingMasterySystem::setMastery(player, recipe->id, Lua::getNumber<int32_t>(L, 3)));
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerGetWizardRecipeInfo(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	const auto* recipe = g_wizardPotions().getByName(Lua::getString(L, 2));
+	if (!recipe) { lua_pushnil(L); return 1; }
+	const auto* progress = player->getWizardRecipeProgress(recipe->id);
+	lua_createtable(L, 0, 13);
+	Lua::setField(L, "id", recipe->id);
+	Lua::setField(L, "name", recipe->name);
+	Lua::setField(L, "developmentFixture", recipe->developmentFixture);
+	Lua::setField(L, "knowledge", progress ? progress->knowledge : 0);
+	Lua::setField(L, "knowledgeRequired", recipe->progression.knowledgeRequired);
+	Lua::setField(L, "magicalKnowledge", player->getWizardSkills().getMagicalKnowledge());
+	Lua::setField(L, "magicalKnowledgeRequired", recipe->progression.magicalKnowledgeRequired);
+	Lua::setField(L, "acquisitionProfile", wizardAcquisitionProfileName(recipe->progression.acquisitionProfile));
+	Lua::setField(L, "learnable", WizardRecipeLearningSystem::isLearnable(player, recipe->id));
+	Lua::setField(L, "learned", progress && progress->learned);
+	Lua::setField(L, "mastery", progress ? progress->mastery : 0);
+	Lua::setField(L, "masteryXp", progress ? progress->masteryXp : 0);
+	Lua::setField(L, "brews", progress ? progress->brews : 0);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerBrewWizardRecipeForTest(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	const auto* recipe = g_wizardPotions().getByName(Lua::getString(L, 2));
+	if (!recipe) { lua_pushnil(L); return 1; }
+	const auto quality = Lua::getNumber<uint16_t>(L, 3, g_wizardProgression().get().brewing.defaultIngredientQuality);
+	std::vector<WizardIngredientInput> ingredients;
+	for (const auto &required : recipe->ingredients) ingredients.push_back({ required.itemId, required.amount, static_cast<uint16_t>(std::min<uint16_t>(100, quality)) });
+	const auto result = WizardBrewingSystem::brew(player, recipe->id, ingredients);
+	lua_createtable(L, 0, 7);
+	Lua::setField(L, "success", result.code == WizardBrewResultCode::SUCCESS);
+	Lua::setField(L, "quality", result.quality);
+	Lua::setField(L, "potency", result.effects.potency);
+	Lua::setField(L, "durationMs", result.effects.durationMs);
+	Lua::setField(L, "yield", result.effects.yield);
+	Lua::setField(L, "stability", result.effects.stability);
+	Lua::setField(L, "xpGranted", result.xpGranted);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerGetWizardDiscoveryInfo(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	const auto id = Lua::getString(L, 2);
+	const auto* definition = g_wizardDiscoveries().getById(id);
+	if (!definition) { lua_pushnil(L); return 1; }
+	(void)WizardDiscoverySystem::assignDiscovery(player, id, true);
+	const auto* state = WizardDiscoverySystem::getDiscoveryState(player, id);
+	const auto* location = state ? g_wizardDiscoveries().getLocation(state->assignedLocationId) : nullptr;
+	lua_createtable(L, 0, 12);
+	Lua::setField(L, "id", definition->id);
+	Lua::setField(L, "state", !state ? "UNASSIGNED" : state->state == WizardDiscoveryStateKind::DISCOVERED ? "DISCOVERED" : "ASSIGNED");
+	Lua::setField(L, "assignedLocationId", state ? state->assignedLocationId : "");
+	Lua::setField(L, "assignedAt", state ? state->assignedAt : 0);
+	Lua::setField(L, "discoveredAt", state ? state->discoveredAt : 0);
+	Lua::setField(L, "rewardAppliedAt", state ? state->rewardAppliedAt : 0);
+	Lua::setField(L, "eligible", WizardDiscoverySystem::canDiscover(player, id));
+	Lua::setField(L, "fromX", location ? location->from.x : 0);
+	Lua::setField(L, "fromY", location ? location->from.y : 0);
+	Lua::setField(L, "fromZ", location ? location->from.z : 0);
+	Lua::setField(L, "toX", location ? location->to.x : 0);
+	Lua::setField(L, "toY", location ? location->to.y : 0);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerGetWizardDiscoveries(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	lua_createtable(L, static_cast<int>(player->getWizardDiscoveryStateMap().size()), 0);
+	int index = 0;
+	for (const auto &[id, state] : player->getWizardDiscoveryStateMap()) {
+		lua_createtable(L, 0, 3);
+		Lua::setField(L, "id", id);
+		Lua::setField(L, "state", state.state == WizardDiscoveryStateKind::DISCOVERED ? "DISCOVERED" : "ASSIGNED");
+		Lua::setField(L, "assignedLocationId", state.assignedLocationId);
+		lua_rawseti(L, -2, ++index);
+	}
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerAssignWizardDiscovery(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	const auto result = WizardDiscoverySystem::assignDiscovery(player, Lua::getString(L, 2), true);
+	Lua::pushBoolean(L, result == WizardDiscoveryResult::SUCCESS || result == WizardDiscoveryResult::ALREADY_DISCOVERED);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerDiscoverWizardDiscovery(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	const auto result = WizardDiscoverySystem::discover(player, Lua::getString(L, 2), player->getPosition(), true);
+	Lua::pushBoolean(L, result == WizardDiscoveryResult::SUCCESS || result == WizardDiscoveryResult::ALREADY_DISCOVERED);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerResetWizardDiscovery(lua_State* L) {
+	const auto &player = Lua::getUserdataShared<Player>(L, 1, "Player");
+	if (!player) { lua_pushnil(L); return 1; }
+	Lua::pushBoolean(L, WizardDiscoverySystem::reset(player, Lua::getString(L, 2), Lua::getBoolean(L, 3, false)));
 	return 1;
 }
 

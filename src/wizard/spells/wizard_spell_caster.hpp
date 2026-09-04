@@ -32,7 +32,7 @@ private:
 #ifdef BUILD_TESTS
 public:
 #endif
-	static void impact(uint32_t playerId, uint32_t spellId, Position targetPosition, Direction direction, uint16_t magicalPower, uint16_t skillCombat, uint16_t mastery);
+	static void impact(uint32_t playerId, uint32_t spellId, Position targetPosition, Direction direction, uint16_t magicalPower, uint16_t magicalControl, uint16_t skillCombat, uint16_t mastery);
 	static void setAffectedCount(CombatDamage &damage, std::size_t affected);
 	static std::vector<std::shared_ptr<Creature>> resolveImpactOccupants(const WizardSpellDefinition &spell, Position targetPosition, Direction direction, uint16_t magicalPower);
 	static std::vector<std::shared_ptr<Creature>> collectImpactTargets(const std::shared_ptr<Player> &player, const WizardSpellDefinition &spell, Position targetPosition, Direction direction, uint16_t magicalPower);

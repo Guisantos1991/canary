@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 struct WizardSkillLimits {
 	uint16_t min = 1;
@@ -30,11 +31,68 @@ struct WizardCastConfig {
 	double masteryMaxReduction = 0.05;
 };
 
+struct WizardValueLimits {
+	uint16_t min = 0;
+	uint16_t max = 100;
+};
+
+struct WizardXpBand {
+	uint16_t throughLevel = 0;
+	uint64_t xpPerLevel = 0;
+};
+
+struct WizardMasteryCurveConfig {
+	WizardValueLimits limits;
+	std::vector<WizardXpBand> bands;
+};
+
+struct WizardMeaningfulUseConfig {
+	uint64_t baseXp = 10;
+	uint64_t additionalTargetBonus = 2;
+	uint16_t bonusTargetCap = 3;
+};
+
+struct WizardSpellEffectConfig {
+	double masteryMaxPotencyBonus = 0.15;
+	double controlMaxPotencyBonus = 0.10;
+	double maxCombinedPotencyBonus = 0.20;
+};
+
+struct WizardBrewingConfig {
+	uint16_t defaultIngredientQuality = 50;
+	uint64_t xpPerValidBrew = 10;
+};
+
+struct WizardPotionQualityConfig {
+	double ingredientWeight = 0.50;
+	double controlMaxBonus = 15.0;
+	double masteryMaxBonus = 15.0;
+	uint16_t min = 0;
+	uint16_t max = 100;
+};
+
+struct WizardPotionEffectConfig {
+	double qualityMaxBonus = 0.15;
+	double controlMaxBonus = 0.05;
+	double masteryMaxBonus = 0.10;
+	double linkedSpellMaxBonus = 0.05;
+	double maxCombinedBonus = 0.25;
+};
+
 struct WizardProgressionConfigData {
 	WizardSkillLimits skills;
 	WizardManaConfig mana;
 	WizardRecoveryConfig recovery;
 	WizardCastConfig cast;
+	WizardValueLimits knowledge;
+	WizardMasteryCurveConfig spellMastery;
+	WizardMeaningfulUseConfig meaningfulUse;
+	WizardSpellEffectConfig spellEffect;
+	WizardValueLimits recipeKnowledge;
+	WizardMasteryCurveConfig brewingMastery;
+	WizardBrewingConfig brewing;
+	WizardPotionQualityConfig potionQuality;
+	WizardPotionEffectConfig potionEffect;
 };
 
 class WizardProgressionConfig {

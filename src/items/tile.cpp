@@ -8,6 +8,7 @@
  */
 
 #include "items/tile.hpp"
+#include "wizard/discovery/wizard_discovery_system.hpp"
 
 #include "config/configmanager.hpp"
 #include "creatures/combat/combat.hpp"
@@ -1509,7 +1510,10 @@ int32_t Tile::getClientIndexOfCreature(const Player* player, const std::shared_p
 
 	const TileItemVector* items = getItemList();
 	if (items) {
-		n += items->getTopItemCount();
+		const auto sharedPlayer = std::const_pointer_cast<Player>(player->getPlayer());
+		for (auto it = items->getBeginTopItem(), end = items->getEndTopItem(); it != end; ++it) {
+			if (WizardDiscoverySystem::isPersonalObjectVisible(sharedPlayer, *it, getPosition())) ++n;
+		}
 	}
 
 	if (const CreatureVector* creatures = getCreatures()) {
@@ -1538,7 +1542,9 @@ int32_t Tile::getStackposOfCreature(const std::shared_ptr<Player> &player, const
 
 	const TileItemVector* items = getItemList();
 	if (items) {
-		n += items->getTopItemCount();
+		for (auto it = items->getBeginTopItem(), end = items->getEndTopItem(); it != end; ++it) {
+			if (WizardDiscoverySystem::isPersonalObjectVisible(player, *it, getPosition())) ++n;
+		}
 		if (n >= 10) {
 			return -1;
 		}
@@ -1571,6 +1577,7 @@ int32_t Tile::getStackposOfItem(const std::shared_ptr<Player> &player, const std
 	if (items) {
 		if (item->isAlwaysOnTop()) {
 			for (auto it = items->getBeginTopItem(), end = items->getEndTopItem(); it != end; ++it) {
+				if (!WizardDiscoverySystem::isPersonalObjectVisible(player, *it, getPosition())) continue;
 				if (*it == item) {
 					return n;
 				} else if (++n == 10) {
@@ -1578,7 +1585,9 @@ int32_t Tile::getStackposOfItem(const std::shared_ptr<Player> &player, const std
 				}
 			}
 		} else {
-			n += items->getTopItemCount();
+			for (auto it = items->getBeginTopItem(), end = items->getEndTopItem(); it != end; ++it) {
+				if (WizardDiscoverySystem::isPersonalObjectVisible(player, *it, getPosition())) ++n;
+			}
 			if (n >= 10) {
 				return -1;
 			}
@@ -1597,6 +1606,7 @@ int32_t Tile::getStackposOfItem(const std::shared_ptr<Player> &player, const std
 
 	if (items && !item->isAlwaysOnTop()) {
 		for (auto it = items->getBeginDownItem(), end = items->getEndDownItem(); it != end; ++it) {
+			if (!WizardDiscoverySystem::isPersonalObjectVisible(player, *it, getPosition())) continue;
 			if (*it == item) {
 				return n;
 			} else if (++n >= 10) {
@@ -2015,6 +2025,34 @@ std::shared_ptr<Item> Tile::getUseItem(int32_t index) const {
 		return thing->getItem();
 	}
 
+	return nullptr;
+}
+
+std::shared_ptr<Item> Tile::getUseItem(int32_t index, const std::shared_ptr<Player> &player) const {
+	if (!player) return getUseItem(index);
+	if (ground) {
+		if (index == 0) return ground;
+		--index;
+	}
+	const TileItemVector* items = getItemList();
+	if (items) {
+		for (auto it = items->getBeginTopItem(), end = items->getEndTopItem(); it != end; ++it) {
+			if (!WizardDiscoverySystem::isPersonalObjectVisible(player, *it, getPosition())) continue;
+			if (index-- == 0) return *it;
+		}
+	}
+	if (const CreatureVector* creatures = getCreatures()) {
+		for (const auto &creature : std::ranges::reverse_view(*creatures)) {
+			if (!player->canSeeCreature(creature)) continue;
+			if (index-- == 0) return nullptr;
+		}
+	}
+	if (items) {
+		for (auto it = items->getBeginDownItem(), end = items->getEndDownItem(); it != end; ++it) {
+			if (!WizardDiscoverySystem::isPersonalObjectVisible(player, *it, getPosition())) continue;
+			if (index-- == 0) return *it;
+		}
+	}
 	return nullptr;
 }
 

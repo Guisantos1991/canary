@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "wizard/progression/wizard_progression_config.hpp"
+#include "wizard/progression/wizard_knowledge_types.hpp"
 
 enum class WizardSkill : uint8_t {
 	MAGICAL_POWER,
@@ -77,4 +78,6 @@ struct WizardSpellProgress {
 	uint16_t mastery = 0;
 	bool learned = false;
 	uint64_t uses = 0;
+	uint64_t masteryXp = 0;
+	WizardKnowledgeSourceMask knowledgeSources = 0;
 };

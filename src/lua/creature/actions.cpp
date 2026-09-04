@@ -21,6 +21,8 @@
 #include "items/containers/rewards/rewardchest.hpp"
 #include "lua/scripts/scripts.hpp"
 #include "lib/di/container.hpp"
+#include "wizard/discovery/wizard_discovery_registry.hpp"
+#include "wizard/discovery/wizard_discovery_system.hpp"
 
 Actions::Actions() = default;
 Actions::~Actions() = default;
@@ -260,6 +262,23 @@ ReturnValue Actions::internalUseItem(const std::shared_ptr<Player> &player, cons
 	if (const auto &door = item->getDoor()) {
 		if (!door->canUse(player)) {
 			return RETURNVALUE_CANNOTUSETHISOBJECT;
+		}
+	}
+
+	if (item->hasAttribute(ItemAttribute_t::ACTIONID)) {
+		const auto actionId = item->getAttribute<uint16_t>(ItemAttribute_t::ACTIONID);
+		if (const auto* discovery = g_wizardDiscoveries().getByActionId(actionId)) {
+			const auto result = WizardDiscoverySystem::interact(player, actionId, pos);
+			if (!discovery->text.empty()) player->sendTextMessage(MESSAGE_EVENT_ADVANCE, discovery->text);
+			if (result == WizardDiscoveryResult::SUCCESS) {
+				player->sendTextMessage(MESSAGE_STATUS, "You understand something new.");
+				if (discovery->personalObject) player->sendUpdateTile(item->getTile(), pos);
+			} else if (result == WizardDiscoveryResult::ALREADY_DISCOVERED) {
+				player->sendTextMessage(MESSAGE_STATUS, "You have already studied this.");
+			} else {
+				player->sendCancelMessage("You cannot understand this yet.");
+			}
+			return RETURNVALUE_NOERROR;
 		}
 	}
 

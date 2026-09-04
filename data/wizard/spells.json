@@ -24,11 +24,54 @@
       "darkMagic": false,
       "difficulty": 1,
       "requiredKnowledge": 1,
+      "progression": {
+        "knowledgeRequired": 100,
+        "magicalKnowledgeRequired": 20,
+        "acquisitionProfile": "HYBRID",
+        "allowedKnowledgeSources": [
+          "READING",
+          "EXPLORATION",
+          "ADMIN",
+          "SYSTEM"
+        ],
+        "requiredKnowledgeSources": []
+      },
       "area": {
         "pattern": "CIRCLE",
         "minSquares": 3,
         "maxSquares": 12
       }
+    },
+    {
+      "id": 9002,
+      "name": "Development Exploration Spark",
+      "incantation": "dev exploratio",
+      "element": "FIRE",
+      "category": "OFFENSIVE",
+      "targetType": "TILE",
+      "manaCost": 30,
+      "castTimeMs": 300,
+      "recoveryTimeMs": 2000,
+      "cooldownMs": 2500,
+      "range": 7,
+      "projectile": { "visualEffect": 4, "travelTimeMs": 500 },
+      "impactEffect": 16,
+      "minPower": 20,
+      "maxPower": 40,
+      "requiresLineOfSight": true,
+      "learnable": true,
+      "darkMagic": false,
+      "difficulty": 1,
+      "requiredKnowledge": 1,
+      "progression": {
+        "knowledgeRequired": 100,
+        "magicalKnowledgeRequired": 20,
+        "acquisitionProfile": "EXPLORATION",
+        "allowedKnowledgeSources": ["EXPLORATION", "ADMIN", "SYSTEM"],
+        "requiredKnowledgeSources": ["EXPLORATION"]
+      },
+      "area": { "pattern": "CIRCLE", "minSquares": 3, "maxSquares": 12 },
+      "developmentFixture": true
     }
   ]
 }

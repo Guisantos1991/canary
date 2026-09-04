@@ -1,9 +1,22 @@
 target_sources(
     ${CORE_TARGET_NAME}
     PRIVATE combat/wizard_area_system.cpp
+            discovery/wizard_discovery_registry.cpp
+            discovery/wizard_discovery_system.cpp
             exhaustion/wizard_exhaustion_system.cpp
             mana/wizard_mana_system.cpp
+            potions/wizard_brewing_mastery_system.cpp
+            potions/wizard_brewing_system.cpp
+            potions/wizard_potion_registry.cpp
+            potions/wizard_recipe_knowledge_system.cpp
+            potions/wizard_recipe_learning_system.cpp
+            progression/wizard_knowledge_system.cpp
+            progression/wizard_knowledge_types.cpp
+            progression/wizard_learning_system.cpp
+            progression/wizard_mastery_curve.cpp
+            progression/wizard_mastery_system.cpp
             progression/wizard_progression_config.cpp
+            progression/wizard_spell_effect_scaling_system.cpp
             spells/wizard_spell_caster.cpp
             spells/wizard_spell_registry.cpp
             spells/wizard_targeting_validator.cpp

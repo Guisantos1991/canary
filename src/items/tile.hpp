@@ -251,6 +251,7 @@ public:
 	}
 
 	std::shared_ptr<Item> getUseItem(int32_t index) const;
+	std::shared_ptr<Item> getUseItem(int32_t index, const std::shared_ptr<Player> &player) const;
 	std::shared_ptr<Item> getDoorItem() const;
 
 	std::shared_ptr<Item> getGround() const {

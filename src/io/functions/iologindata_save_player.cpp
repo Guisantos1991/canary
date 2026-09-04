@@ -468,20 +468,29 @@ bool IOLoginDataSave::savePlayerWizardData(const std::shared_ptr<Player> &player
 	if (!db.executeQuery(fmt::format("DELETE FROM `player_wizard_spells` WHERE `player_id` = {}", playerGuid))) {
 		return false;
 	}
-	if (player->getWizardSpellProgressMap().empty()) {
-		return true;
+	if (!player->getWizardSpellProgressMap().empty()) {
+		DBInsert query("INSERT INTO `player_wizard_spells` (`player_id`, `spell_id`, `knowledge`, `mastery`, `mastery_xp`, `knowledge_sources`, `learned`, `uses`) VALUES ");
+		fmt::memory_buffer rowBuffer;
+		for (const auto &[spellId, progress] : player->getWizardSpellProgressMap()) {
+			rowBuffer.clear();
+			fmt::format_to(std::back_inserter(rowBuffer), "{},{},{},{},{},{},{},{}", playerGuid, spellId, std::min<uint16_t>(100, progress.knowledge), std::min<uint16_t>(100, progress.mastery), progress.masteryXp, progress.knowledgeSources, progress.learned ? 1 : 0, progress.uses);
+			if (!query.addRow(std::string_view(rowBuffer.data(), rowBuffer.size()))) return false;
+		}
+		if (!query.execute()) return false;
 	}
 
-	DBInsert query("INSERT INTO `player_wizard_spells` (`player_id`, `spell_id`, `knowledge`, `mastery`, `learned`, `uses`) VALUES ");
-	fmt::memory_buffer rowBuffer;
-	for (const auto &[spellId, progress] : player->getWizardSpellProgressMap()) {
-		rowBuffer.clear();
-		fmt::format_to(std::back_inserter(rowBuffer), "{},{},{},{},{},{}", playerGuid, spellId, std::min<uint16_t>(100, progress.knowledge), std::min<uint16_t>(100, progress.mastery), progress.learned ? 1 : 0, progress.uses);
-		if (!query.addRow(std::string_view(rowBuffer.data(), rowBuffer.size()))) {
-			return false;
+	if (!db.executeQuery(fmt::format("DELETE FROM `player_wizard_recipes` WHERE `player_id` = {}", playerGuid))) return false;
+	if (!player->getWizardRecipeProgressMap().empty()) {
+		DBInsert query("INSERT INTO `player_wizard_recipes` (`player_id`, `recipe_id`, `knowledge`, `mastery`, `mastery_xp`, `knowledge_sources`, `learned`, `brews`) VALUES ");
+		fmt::memory_buffer rowBuffer;
+		for (const auto &[recipeId, progress] : player->getWizardRecipeProgressMap()) {
+			rowBuffer.clear();
+			fmt::format_to(std::back_inserter(rowBuffer), "{},{},{},{},{},{},{},{}", playerGuid, recipeId, std::min<uint16_t>(100, progress.knowledge), std::min<uint16_t>(100, progress.mastery), progress.masteryXp, progress.knowledgeSources, progress.learned ? 1 : 0, progress.brews);
+			if (!query.addRow(std::string_view(rowBuffer.data(), rowBuffer.size()))) return false;
 		}
+		if (!query.execute()) return false;
 	}
-	return query.execute();
+	return true;
 }
 
 bool IOLoginDataSave::savePlayerKills(const std::shared_ptr<Player> &player) {

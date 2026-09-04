@@ -21,5 +21,63 @@
   "cast": {
     "combatSkillMaxReduction": 0.10,
     "masteryMaxReduction": 0.05
+  },
+  "knowledge": {
+    "min": 0,
+    "max": 100
+  },
+  "spellMastery": {
+    "min": 0,
+    "max": 100,
+    "bands": [
+      { "throughLevel": 20, "xpPerLevel": 50 },
+      { "throughLevel": 50, "xpPerLevel": 125 },
+      { "throughLevel": 80, "xpPerLevel": 300 },
+      { "throughLevel": 95, "xpPerLevel": 750 },
+      { "throughLevel": 100, "xpPerLevel": 1500 }
+    ]
+  },
+  "meaningfulCombatUse": {
+    "baseXp": 10,
+    "additionalTargetBonus": 2,
+    "bonusTargetCap": 3
+  },
+  "spellEffect": {
+    "masteryMaxPotencyBonus": 0.15,
+    "controlMaxPotencyBonus": 0.10,
+    "maxCombinedPotencyBonus": 0.20
+  },
+  "recipeKnowledge": {
+    "min": 0,
+    "max": 100
+  },
+  "brewingMastery": {
+    "min": 0,
+    "max": 100,
+    "bands": [
+      { "throughLevel": 20, "xpPerLevel": 40 },
+      { "throughLevel": 50, "xpPerLevel": 100 },
+      { "throughLevel": 80, "xpPerLevel": 250 },
+      { "throughLevel": 95, "xpPerLevel": 650 },
+      { "throughLevel": 100, "xpPerLevel": 1300 }
+    ]
+  },
+  "brewing": {
+    "defaultIngredientQuality": 50,
+    "xpPerValidBrew": 10
+  },
+  "potionQuality": {
+    "min": 0,
+    "max": 100,
+    "ingredientWeight": 0.50,
+    "controlMaxBonus": 15.0,
+    "masteryMaxBonus": 15.0
+  },
+  "potionEffect": {
+    "qualityMaxBonus": 0.15,
+    "controlMaxBonus": 0.05,
+    "masteryMaxBonus": 0.10,
+    "linkedSpellMaxBonus": 0.05,
+    "maxCombinedBonus": 0.25
   }
 }

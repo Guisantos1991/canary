@@ -467,6 +467,7 @@ void IOLoginDataLoad::loadPlayerStashItems(const std::shared_ptr<Player> &player
 			player->addItemOnStash(itemId, result->getNumber<uint32_t>("item_count"));
 		} while (result->next());
 	}
+
 }
 
 void IOLoginDataLoad::loadPlayerBestiaryCharms(const std::shared_ptr<Player> &player, DBResult_ptr result) {
@@ -563,15 +564,50 @@ void IOLoginDataLoad::loadPlayerWizardData(const std::shared_ptr<Player> &player
 
 	player->clearWizardSpellProgress();
 	if (auto result = db.storeQuery(fmt::format(
-			"SELECT `spell_id`, `knowledge`, `mastery`, `learned`, `uses` FROM `player_wizard_spells` WHERE `player_id` = {}",
+			"SELECT `spell_id`, `knowledge`, `mastery`, `mastery_xp`, `knowledge_sources`, `learned`, `uses` FROM `player_wizard_spells` WHERE `player_id` = {}",
 			player->getGUID()
 		))) {
 		do {
 			auto &progress = player->getOrCreateWizardSpellProgress(result->getNumber<uint32_t>("spell_id"));
 			progress.knowledge = std::min<uint16_t>(100, result->getNumber<uint16_t>("knowledge"));
 			progress.mastery = std::min<uint16_t>(100, result->getNumber<uint16_t>("mastery"));
+			progress.masteryXp = result->getNumber<uint64_t>("mastery_xp");
+			progress.knowledgeSources = result->getNumber<WizardKnowledgeSourceMask>("knowledge_sources");
 			progress.learned = result->getNumber<uint16_t>("learned") != 0;
 			progress.uses = result->getNumber<uint64_t>("uses");
+		} while (result->next());
+	}
+
+	player->clearWizardRecipeProgress();
+	if (auto result = db.storeQuery(fmt::format(
+			"SELECT `recipe_id`, `knowledge`, `mastery`, `mastery_xp`, `knowledge_sources`, `learned`, `brews` FROM `player_wizard_recipes` WHERE `player_id` = {}",
+			player->getGUID()
+		))) {
+		do {
+			auto &progress = player->getOrCreateWizardRecipeProgress(result->getNumber<uint32_t>("recipe_id"));
+			progress.knowledge = std::min<uint16_t>(100, result->getNumber<uint16_t>("knowledge"));
+			progress.mastery = std::min<uint16_t>(100, result->getNumber<uint16_t>("mastery"));
+			progress.masteryXp = result->getNumber<uint64_t>("mastery_xp");
+			progress.knowledgeSources = result->getNumber<WizardKnowledgeSourceMask>("knowledge_sources");
+			progress.learned = result->getNumber<uint16_t>("learned") != 0;
+			progress.brews = result->getNumber<uint64_t>("brews");
+		} while (result->next());
+	}
+
+	player->clearWizardDiscoveryStates();
+	if (auto result = db.storeQuery(fmt::format(
+		"SELECT `discovery_id`, `state`, `assigned_location_id`, UNIX_TIMESTAMP(`assigned_at`) AS `assigned_at`, "
+		"UNIX_TIMESTAMP(`discovered_at`) AS `discovered_at`, UNIX_TIMESTAMP(`reward_applied_at`) AS `reward_applied_at` "
+		"FROM `player_wizard_discoveries` WHERE `player_id` = {}",
+		player->getGUID()
+	))) {
+		do {
+			auto &state = player->getOrCreateWizardDiscoveryState(result->getString("discovery_id"));
+			state.state = result->getString("state") == "DISCOVERED" ? WizardDiscoveryStateKind::DISCOVERED : WizardDiscoveryStateKind::ASSIGNED;
+			state.assignedLocationId = result->getString("assigned_location_id");
+			state.assignedAt = result->getNumber<uint64_t>("assigned_at");
+			state.discoveredAt = result->getNumber<uint64_t>("discovered_at");
+			state.rewardAppliedAt = result->getNumber<uint64_t>("reward_applied_at");
 		} while (result->next());
 	}
 }
@@ -886,6 +922,7 @@ void IOLoginDataLoad::loadPlayerPreyClass(const std::shared_ptr<Player> &player,
 			} while (result->next());
 		}
 	}
+
 }
 
 void IOLoginDataLoad::loadPlayerTaskHuntingClass(const std::shared_ptr<Player> &player, DBResult_ptr result) {

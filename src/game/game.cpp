@@ -60,6 +60,7 @@
 #include "utils/tools.hpp"
 #include "utils/wildcardtree.hpp"
 #include "wizard/spells/wizard_spell_caster.hpp"
+#include "wizard/discovery/wizard_discovery_system.hpp"
 #include "creatures/players/vocations/vocation.hpp"
 #include "creatures/players/components/wheel/wheel_definitions.hpp"
 
@@ -1152,7 +1153,7 @@ std::shared_ptr<Thing> Game::internalGetThing(const std::shared_ptr<Player> &pla
 			}
 
 			case STACKPOS_USEITEM: {
-				thing = tile->getUseItem(index);
+				thing = tile->getUseItem(index, player);
 				break;
 			}
 
@@ -1164,13 +1165,13 @@ std::shared_ptr<Thing> Game::internalGetThing(const std::shared_ptr<Player> &pla
 			case STACKPOS_USETARGET: {
 				thing = tile->getTopVisibleCreature(player);
 				if (!thing) {
-					thing = tile->getUseItem(index);
+					thing = tile->getUseItem(index, player);
 				}
 				break;
 			}
 
 			case STACKPOS_FIND_THING: {
-				thing = tile->getUseItem(index);
+				thing = tile->getUseItem(index, player);
 				if (!thing) {
 					thing = tile->getDoorItem();
 				}
@@ -6389,6 +6390,11 @@ void Game::playerLookAt(uint32_t playerId, uint16_t itemId, const Position &pos,
 	// Parse onLook from event player
 	g_events().eventPlayerOnLook(player, pos, thing, stackPos, lookDistance);
 	g_callbacks().executeCallback(EventCallback_t::playerOnLook, player, thing, pos, lookDistance);
+	if (const auto &item = thing->getItem()) {
+		if (WizardDiscoverySystem::examineIngredient(player, item->getID()) == WizardDiscoveryResult::SUCCESS) {
+			player->sendTextMessage(MESSAGE_STATUS, "You understand this ingredient better.");
+		}
+	}
 }
 
 void Game::playerLookInBattleList(uint32_t playerId, uint32_t creatureId) {

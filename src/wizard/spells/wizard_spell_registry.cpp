@@ -48,6 +48,31 @@ namespace {
 		spell.requiredKnowledge = json.value("requiredKnowledge", spell.difficulty);
 		spell.specialScript = json.value("specialScript", "");
 
+		const auto &progression = json.at("progression");
+		spell.progression.knowledgeRequired = progression.at("knowledgeRequired").get<uint16_t>();
+		spell.progression.magicalKnowledgeRequired = progression.at("magicalKnowledgeRequired").get<uint16_t>();
+		if (!parseWizardAcquisitionProfile(progression.at("acquisitionProfile").get<std::string>(), spell.progression.acquisitionProfile)) {
+			throw std::runtime_error("invalid progression.acquisitionProfile");
+		}
+		for (const auto &sourceName : progression.at("allowedKnowledgeSources")) {
+			WizardKnowledgeSource source;
+			if (!parseWizardKnowledgeSource(sourceName.get<std::string>(), source) || source == WizardKnowledgeSource::EXPERIMENTATION) {
+				throw std::runtime_error("invalid spell knowledge source: " + sourceName.get<std::string>());
+			}
+			const auto bit = wizardKnowledgeSourceBit(source);
+			if ((spell.progression.allowedKnowledgeSources & bit) != 0) {
+				throw std::runtime_error("duplicate spell knowledge source: " + sourceName.get<std::string>());
+			}
+			spell.progression.allowedKnowledgeSources |= bit;
+		}
+		for (const auto &sourceName : progression.value("requiredKnowledgeSources", nlohmann::json::array())) {
+			WizardKnowledgeSource source;
+			if (!parseWizardKnowledgeSource(sourceName.get<std::string>(), source)) {
+				throw std::runtime_error("invalid required spell knowledge source: " + sourceName.get<std::string>());
+			}
+			spell.progression.requiredKnowledgeSources |= wizardKnowledgeSourceBit(source);
+		}
+
 		const auto &area = json.at("area");
 		spell.area.pattern = parseEnum<WizardAreaPattern>(area.at("pattern").get<std::string>(), {
 			{ "NONE", WizardAreaPattern::NONE }, { "CIRCLE", WizardAreaPattern::CIRCLE }, { "CROSS", WizardAreaPattern::CROSS },
@@ -98,6 +123,12 @@ namespace {
 		}
 		if (spell.requiredKnowledge > 100 || spell.difficulty > 100) {
 			throw std::runtime_error("difficulty and requiredKnowledge must be in 0..100");
+		}
+		if (spell.progression.knowledgeRequired > 100 || spell.progression.magicalKnowledgeRequired > 100 || spell.progression.allowedKnowledgeSources == 0) {
+			throw std::runtime_error("spell progression requirements must be inside 0..100 and allow at least one source");
+		}
+		if ((spell.progression.requiredKnowledgeSources & ~spell.progression.allowedKnowledgeSources) != 0) {
+			throw std::runtime_error("required spell knowledge sources must also be allowed");
 		}
 	}
 }

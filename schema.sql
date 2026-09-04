@@ -805,10 +805,40 @@ CREATE TABLE IF NOT EXISTS `player_wizard_spells` (
     `spell_id` int(10) UNSIGNED NOT NULL,
     `knowledge` tinyint(3) UNSIGNED NOT NULL DEFAULT '0',
     `mastery` tinyint(3) UNSIGNED NOT NULL DEFAULT '0',
+    `mastery_xp` bigint(20) UNSIGNED NOT NULL DEFAULT '0',
+    `knowledge_sources` smallint(5) UNSIGNED NOT NULL DEFAULT '0',
     `learned` tinyint(1) UNSIGNED NOT NULL DEFAULT '0',
     `uses` bigint(20) UNSIGNED NOT NULL DEFAULT '0',
     CONSTRAINT `player_wizard_spells_pk` PRIMARY KEY (`player_id`, `spell_id`),
     CONSTRAINT `player_wizard_spells_players_fk` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Wizard potion recipe progression
+CREATE TABLE IF NOT EXISTS `player_wizard_recipes` (
+    `player_id` int(11) NOT NULL,
+    `recipe_id` int(10) UNSIGNED NOT NULL,
+    `knowledge` tinyint(3) UNSIGNED NOT NULL DEFAULT '0',
+    `mastery` tinyint(3) UNSIGNED NOT NULL DEFAULT '0',
+    `mastery_xp` bigint(20) UNSIGNED NOT NULL DEFAULT '0',
+    `knowledge_sources` smallint(5) UNSIGNED NOT NULL DEFAULT '0',
+    `learned` tinyint(1) UNSIGNED NOT NULL DEFAULT '0',
+    `brews` bigint(20) UNSIGNED NOT NULL DEFAULT '0',
+    CONSTRAINT `player_wizard_recipes_pk` PRIMARY KEY (`player_id`, `recipe_id`),
+    CONSTRAINT `player_wizard_recipes_players_fk` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Wizard personal discoveries and persistent curated-location assignments
+CREATE TABLE IF NOT EXISTS `player_wizard_discoveries` (
+    `player_id` int(11) NOT NULL,
+    `discovery_id` varchar(128) NOT NULL,
+    `state` enum('ASSIGNED','DISCOVERED') NOT NULL DEFAULT 'ASSIGNED',
+    `assigned_location_id` varchar(128) DEFAULT NULL,
+    `assigned_at` timestamp NULL DEFAULT NULL,
+    `discovered_at` timestamp NULL DEFAULT NULL,
+    `reward_applied_at` timestamp NULL DEFAULT NULL,
+    CONSTRAINT `player_wizard_discoveries_pk` PRIMARY KEY (`player_id`, `discovery_id`),
+    INDEX `player_wizard_discoveries_discovery_idx` (`discovery_id`),
+    CONSTRAINT `player_wizard_discoveries_players_fk` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Table structure `player_stash`

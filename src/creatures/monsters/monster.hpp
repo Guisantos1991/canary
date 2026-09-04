@@ -95,6 +95,13 @@ public:
 
 	explicit Monster(const std::shared_ptr<MonsterType> &mType);
 
+#ifdef BUILD_TESTS
+	void setHealthForTesting(const int32_t current, const int32_t maximum) {
+		health = current;
+		healthMax = maximum;
+	}
+#endif
+
 	// non-copyable
 	Monster(const Monster &) = delete;
 	Monster &operator=(const Monster &) = delete;

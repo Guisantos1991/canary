@@ -69,6 +69,7 @@
 #include "creatures/combat/spells.hpp"
 #include "utils/tools.hpp"
 #include "wizard/spells/wizard_spell_registry.hpp"
+#include "wizard/discovery/wizard_discovery_system.hpp"
 
 namespace {
 	[[nodiscard]] double getItemImbuementSkillEquipment(const std::shared_ptr<Item> &item, uint16_t skill) {
@@ -6777,7 +6778,6 @@ bool Player::learnWizardSpell(const uint32_t spellId) {
 	}
 	auto &progress = getOrCreateWizardSpellProgress(spellId);
 	progress.learned = true;
-	progress.knowledge = std::max<uint16_t>(progress.knowledge, std::max(spell->difficulty, spell->requiredKnowledge));
 	return true;
 }
 
@@ -6796,6 +6796,61 @@ const std::unordered_map<uint32_t, WizardSpellProgress> &Player::getWizardSpellP
 
 void Player::clearWizardSpellProgress() {
 	wizardSpellProgress.clear();
+}
+
+bool Player::hasLearnedWizardRecipe(const uint32_t recipeId) const {
+	const auto found = wizardRecipeProgress.find(recipeId);
+	return found != wizardRecipeProgress.end() && found->second.learned;
+}
+
+WizardRecipeProgress &Player::getOrCreateWizardRecipeProgress(const uint32_t recipeId) {
+	return wizardRecipeProgress[recipeId];
+}
+
+const WizardRecipeProgress* Player::getWizardRecipeProgress(const uint32_t recipeId) const {
+	const auto found = wizardRecipeProgress.find(recipeId);
+	return found == wizardRecipeProgress.end() ? nullptr : &found->second;
+}
+
+const std::unordered_map<uint32_t, WizardRecipeProgress> &Player::getWizardRecipeProgressMap() const {
+	return wizardRecipeProgress;
+}
+
+void Player::clearWizardRecipeProgress() {
+	wizardRecipeProgress.clear();
+}
+
+WizardDiscoveryState &Player::getOrCreateWizardDiscoveryState(const std::string &discoveryId) {
+	return wizardDiscoveryStates[discoveryId];
+}
+
+const WizardDiscoveryState* Player::getWizardDiscoveryState(const std::string &discoveryId) const {
+	const auto found = wizardDiscoveryStates.find(discoveryId);
+	return found == wizardDiscoveryStates.end() ? nullptr : &found->second;
+}
+
+const std::unordered_map<std::string, WizardDiscoveryState> &Player::getWizardDiscoveryStateMap() const {
+	return wizardDiscoveryStates;
+}
+
+void Player::eraseWizardDiscoveryState(const std::string &discoveryId) {
+	wizardDiscoveryStates.erase(discoveryId);
+}
+
+void Player::clearWizardDiscoveryStates() {
+	wizardDiscoveryStates.clear();
+}
+
+void Player::replaceWizardSpellProgress(const std::unordered_map<uint32_t, WizardSpellProgress> &progress) {
+	wizardSpellProgress = progress;
+}
+
+void Player::replaceWizardRecipeProgress(const std::unordered_map<uint32_t, WizardRecipeProgress> &progress) {
+	wizardRecipeProgress = progress;
+}
+
+void Player::replaceWizardDiscoveryStates(const std::unordered_map<std::string, WizardDiscoveryState> &states) {
+	wizardDiscoveryStates = states;
 }
 
 int64_t Player::getWizardRecoveryUntil() const {
@@ -12351,6 +12406,8 @@ void Player::onCreatureMove(const std::shared_ptr<Creature> &creature, const std
 	if (creature != getPlayer()) {
 		return;
 	}
+
+	WizardDiscoverySystem::processLocation(static_self_cast<Player>(), newPos);
 
 	if (!teleport && oldPos.z == newPos.z) {
 		updateParalyzeWalkExhaust();

@@ -8,6 +8,7 @@
  */
 
 #include "items/item.hpp"
+#include "wizard/discovery/wizard_discovery_registry.hpp"
 
 #include "config/configmanager.hpp"
 #include "containers/rewards/rewardchest.hpp"
@@ -1636,6 +1637,9 @@ bool Item::canBeMoved() const {
 		return false;
 	}
 	if (hasAttribute(ItemAttribute_t::ACTIONID) && immovableActionIds.contains(static_cast<int32_t>(getAttribute<uint16_t>(ItemAttribute_t::ACTIONID)))) {
+		return false;
+	}
+	if (hasAttribute(ItemAttribute_t::ACTIONID) && g_wizardDiscoveries().getByActionId(getAttribute<uint16_t>(ItemAttribute_t::ACTIONID))) {
 		return false;
 	}
 	return isMovable();

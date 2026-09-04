@@ -113,6 +113,22 @@
     <ClInclude Include="..\src\wizard\spells\wizard_spell_definition.hpp" />
     <ClInclude Include="..\src\wizard\spells\wizard_spell_registry.hpp" />
     <ClInclude Include="..\src\wizard\spells\wizard_targeting_validator.hpp" />
+    <ClInclude Include="..\src\wizard\potions\wizard_brewing_mastery_system.hpp" />
+    <ClInclude Include="..\src\wizard\potions\wizard_brewing_system.hpp" />
+    <ClInclude Include="..\src\wizard\potions\wizard_potion_definition.hpp" />
+    <ClInclude Include="..\src\wizard\discovery\wizard_discovery_registry.hpp" />
+    <ClInclude Include="..\src\wizard\discovery\wizard_discovery_system.hpp" />
+    <ClInclude Include="..\src\wizard\discovery\wizard_discovery_types.hpp" />
+    <ClInclude Include="..\src\wizard\potions\wizard_potion_registry.hpp" />
+    <ClInclude Include="..\src\wizard\potions\wizard_recipe_knowledge_system.hpp" />
+    <ClInclude Include="..\src\wizard\potions\wizard_recipe_learning_system.hpp" />
+    <ClInclude Include="..\src\wizard\potions\wizard_recipe_progress.hpp" />
+    <ClInclude Include="..\src\wizard\progression\wizard_knowledge_system.hpp" />
+    <ClInclude Include="..\src\wizard\progression\wizard_knowledge_types.hpp" />
+    <ClInclude Include="..\src\wizard\progression\wizard_learning_system.hpp" />
+    <ClInclude Include="..\src\wizard\progression\wizard_mastery_curve.hpp" />
+    <ClInclude Include="..\src\wizard\progression\wizard_mastery_system.hpp" />
+    <ClInclude Include="..\src\wizard\progression\wizard_spell_effect_scaling_system.hpp" />
     <ClInclude Include="..\src\wizard\wizard_magic.hpp" />
     <ClInclude Include="..\src\items\bed.hpp" />
     <ClInclude Include="..\src\items\containers\container.hpp" />
@@ -487,6 +503,19 @@
     <ClCompile Include="..\src\wizard\spells\wizard_spell_caster.cpp" />
     <ClCompile Include="..\src\wizard\spells\wizard_spell_registry.cpp" />
     <ClCompile Include="..\src\wizard\spells\wizard_targeting_validator.cpp" />
+    <ClCompile Include="..\src\wizard\potions\wizard_brewing_mastery_system.cpp" />
+    <ClCompile Include="..\src\wizard\potions\wizard_brewing_system.cpp" />
+    <ClCompile Include="..\src\wizard\discovery\wizard_discovery_registry.cpp" />
+    <ClCompile Include="..\src\wizard\discovery\wizard_discovery_system.cpp" />
+    <ClCompile Include="..\src\wizard\potions\wizard_potion_registry.cpp" />
+    <ClCompile Include="..\src\wizard\potions\wizard_recipe_knowledge_system.cpp" />
+    <ClCompile Include="..\src\wizard\potions\wizard_recipe_learning_system.cpp" />
+    <ClCompile Include="..\src\wizard\progression\wizard_knowledge_system.cpp" />
+    <ClCompile Include="..\src\wizard\progression\wizard_knowledge_types.cpp" />
+    <ClCompile Include="..\src\wizard\progression\wizard_learning_system.cpp" />
+    <ClCompile Include="..\src\wizard\progression\wizard_mastery_curve.cpp" />
+    <ClCompile Include="..\src\wizard\progression\wizard_mastery_system.cpp" />
+    <ClCompile Include="..\src\wizard\progression\wizard_spell_effect_scaling_system.cpp" />
     <ClCompile Include="..\src\wizard\wizard_magic.cpp" />
   </ItemGroup>
   <ItemGroup>

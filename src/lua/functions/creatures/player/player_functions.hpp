@@ -251,7 +251,20 @@ class PlayerFunctions {
 	static int luaPlayerGetWizardSkill(lua_State* L);
 	static int luaPlayerSetWizardSkill(lua_State* L);
 	static int luaPlayerLearnWizardSpell(lua_State* L);
+	static int luaPlayerTryLearnWizardSpell(lua_State* L);
+	static int luaPlayerSetWizardSpellKnowledge(lua_State* L);
+	static int luaPlayerSetWizardSpellMastery(lua_State* L);
 	static int luaPlayerGetWizardSpellInfo(lua_State* L);
+	static int luaPlayerTryLearnWizardRecipe(lua_State* L);
+	static int luaPlayerSetWizardRecipeKnowledge(lua_State* L);
+	static int luaPlayerSetWizardRecipeMastery(lua_State* L);
+	static int luaPlayerGetWizardRecipeInfo(lua_State* L);
+	static int luaPlayerBrewWizardRecipeForTest(lua_State* L);
+	static int luaPlayerGetWizardDiscoveryInfo(lua_State* L);
+	static int luaPlayerGetWizardDiscoveries(lua_State* L);
+	static int luaPlayerAssignWizardDiscovery(lua_State* L);
+	static int luaPlayerDiscoverWizardDiscovery(lua_State* L);
+	static int luaPlayerResetWizardDiscovery(lua_State* L);
 
 	static int luaPlayerApplyImbuementScroll(lua_State* L);
 	static int luaPlayerOpenImbuementWindow(lua_State* L);

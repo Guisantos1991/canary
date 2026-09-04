@@ -34,6 +34,8 @@
 #include "creatures/players/components/weapon_proficiency.hpp"
 #include "utils/hash.hpp"
 #include "wizard/skills/wizard_skill.hpp"
+#include "wizard/potions/wizard_recipe_progress.hpp"
+#include "wizard/discovery/wizard_discovery_types.hpp"
 
 class House;
 class NetworkMessage;
@@ -827,6 +829,19 @@ public:
 	[[nodiscard]] const WizardSpellProgress* getWizardSpellProgress(uint32_t spellId) const;
 	[[nodiscard]] const std::unordered_map<uint32_t, WizardSpellProgress> &getWizardSpellProgressMap() const;
 	void clearWizardSpellProgress();
+	[[nodiscard]] bool hasLearnedWizardRecipe(uint32_t recipeId) const;
+	WizardRecipeProgress &getOrCreateWizardRecipeProgress(uint32_t recipeId);
+	[[nodiscard]] const WizardRecipeProgress* getWizardRecipeProgress(uint32_t recipeId) const;
+	[[nodiscard]] const std::unordered_map<uint32_t, WizardRecipeProgress> &getWizardRecipeProgressMap() const;
+	void clearWizardRecipeProgress();
+	WizardDiscoveryState &getOrCreateWizardDiscoveryState(const std::string &discoveryId);
+	[[nodiscard]] const WizardDiscoveryState* getWizardDiscoveryState(const std::string &discoveryId) const;
+	[[nodiscard]] const std::unordered_map<std::string, WizardDiscoveryState> &getWizardDiscoveryStateMap() const;
+	void eraseWizardDiscoveryState(const std::string &discoveryId);
+	void clearWizardDiscoveryStates();
+	void replaceWizardSpellProgress(const std::unordered_map<uint32_t, WizardSpellProgress> &progress);
+	void replaceWizardRecipeProgress(const std::unordered_map<uint32_t, WizardRecipeProgress> &progress);
+	void replaceWizardDiscoveryStates(const std::unordered_map<std::string, WizardDiscoveryState> &states);
 	[[nodiscard]] int64_t getWizardRecoveryUntil() const;
 	void setWizardRecoveryUntil(int64_t value);
 	[[nodiscard]] int64_t getWizardCooldownUntil(uint32_t spellId) const;
@@ -1713,6 +1728,8 @@ private:
 	std::vector<std::string> learnedInstantSpellList;
 	WizardSkillSnapshot wizardSkills;
 	std::unordered_map<uint32_t, WizardSpellProgress> wizardSpellProgress;
+	std::unordered_map<uint32_t, WizardRecipeProgress> wizardRecipeProgress;
+	std::unordered_map<std::string, WizardDiscoveryState> wizardDiscoveryStates;
 	std::unordered_map<uint32_t, int64_t> wizardSpellCooldowns;
 	int64_t wizardRecoveryUntil = 0;
 	// TODO: This variable is only temporarily used when logging in, get rid of it somehow.

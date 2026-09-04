@@ -1,0 +1,85 @@
+{
+  "locations": [
+    { "id": "dev_book_position", "position": { "x": 32369, "y": 32242, "z": 7 } },
+    { "id": "dev_plaque_position", "position": { "x": 32370, "y": 32242, "z": 7 } },
+    { "id": "dev_world_object_position", "position": { "x": 32371, "y": 32242, "z": 7 } },
+    { "id": "dev_chain_position", "position": { "x": 32372, "y": 32242, "z": 7 } },
+    { "id": "dev_secret_a", "position": { "x": 32369, "y": 32244, "z": 7 } },
+    { "id": "dev_secret_b", "position": { "x": 32370, "y": 32244, "z": 7 } },
+    { "id": "dev_secret_c", "position": { "x": 32371, "y": 32244, "z": 7 } },
+    { "id": "dev_hidden_area_a", "area": { "from": { "x": 32368, "y": 32246, "z": 7 }, "to": { "x": 32369, "y": 32247, "z": 7 } } },
+    { "id": "dev_hidden_area_b", "area": { "from": { "x": 32371, "y": 32246, "z": 7 }, "to": { "x": 32372, "y": 32247, "z": 7 } } },
+    { "id": "dev_hidden_area_c", "area": { "from": { "x": 32374, "y": 32246, "z": 7 }, "to": { "x": 32375, "y": 32247, "z": 7 } } },
+    { "id": "dev_ingredient_anchor", "position": { "x": 32369, "y": 32242, "z": 7 } }
+  ],
+  "discoveries": [
+    {
+      "id": "dev_clue_sealed_fire_room", "type": "ITEM", "progressionSource": "EXPLORATION",
+      "repeatability": "ONE_SHOT", "visibility": "PERSONAL", "developmentFixture": true,
+      "placement": { "mode": "FIXED", "locationId": "dev_chain_position" }, "rewards": []
+    },
+    {
+      "id": "dev_reading_book_01", "type": "BOOK", "progressionSource": "READING",
+      "repeatability": "ONE_SHOT", "visibility": "SHARED", "actionId": 62001, "developmentFixture": true,
+      "text": "Development text: elemental foundations can be studied again, but understood only once.",
+      "placement": { "mode": "FIXED", "locationId": "dev_book_position" },
+      "rewards": [
+        { "type": "SPELL_KNOWLEDGE", "spellId": 9001, "amount": 15 },
+        { "type": "SPELL_KNOWLEDGE", "spellId": 9002, "amount": 15 },
+        { "type": "RECIPE_KNOWLEDGE", "recipeId": 7001, "amount": 5 },
+        { "type": "CLUE", "discoveryId": "dev_clue_sealed_fire_room" }
+      ]
+    },
+    {
+      "id": "dev_fire_plaque_01", "type": "PLAQUE", "progressionSource": "EXPLORATION",
+      "repeatability": "ONE_SHOT", "visibility": "SHARED", "actionId": 62002, "developmentFixture": true,
+      "text": "Development inscription: the quiet flame answers patient observation.",
+      "placement": { "mode": "FIXED", "locationId": "dev_plaque_position" },
+      "rewards": [{ "type": "SPELL_KNOWLEDGE", "spellId": 9001, "amount": 10 }]
+    },
+    {
+      "id": "dev_secret_page_01", "type": "PAGE", "progressionSource": "EXPLORATION",
+      "repeatability": "ONE_SHOT", "visibility": "PERSONAL", "personalObject": true, "actionId": 62003, "developmentFixture": true,
+      "text": "Development fragment: a burned notation points toward an unseen archive.",
+      "placement": { "mode": "PLAYER_RANDOM", "locationPool": ["dev_secret_a", "dev_secret_b", "dev_secret_c"] },
+      "rewards": [{ "type": "SPELL_KNOWLEDGE", "spellId": 9002, "amount": 20 }]
+    },
+    {
+      "id": "dev_world_object_01", "type": "WORLD_OBJECT", "progressionSource": "EXPLORATION",
+      "repeatability": "ONE_SHOT", "visibility": "SHARED", "actionId": 62004, "developmentFixture": true,
+      "text": "Development object: old scorch marks reveal a repeatable pattern.",
+      "placement": { "mode": "FIXED", "locationId": "dev_world_object_position" },
+      "rewards": [{ "type": "SPELL_KNOWLEDGE", "spellId": 9002, "amount": 15 }]
+    },
+    {
+      "id": "dev_found_hidden_area", "type": "LOCATION", "progressionSource": "EXPLORATION",
+      "repeatability": "ONE_SHOT", "visibility": "PERSONAL", "developmentFixture": true,
+      "placement": { "mode": "PLAYER_RANDOM", "locationPool": ["dev_hidden_area_a", "dev_hidden_area_b", "dev_hidden_area_c"] },
+      "rewards": [{ "type": "SPELL_KNOWLEDGE", "spellId": 9001, "amount": 5 }]
+    },
+    {
+      "id": "dev_ingredient_01", "type": "INGREDIENT", "progressionSource": "EXPLORATION",
+      "repeatability": "ONE_SHOT", "visibility": "SHARED", "ingredientItemId": 266, "developmentFixture": true,
+      "placement": { "mode": "FIXED", "locationId": "dev_ingredient_anchor" },
+      "rewards": [{ "type": "RECIPE_KNOWLEDGE", "recipeId": 7001, "amount": 5 }]
+    },
+    {
+      "id": "dev_chain_a", "type": "PLAQUE", "progressionSource": "EXPLORATION",
+      "repeatability": "ONE_SHOT", "visibility": "SHARED", "actionId": 62005, "developmentFixture": true,
+      "text": "Development chain fragment A.", "placement": { "mode": "FIXED", "locationId": "dev_plaque_position" }, "rewards": []
+    },
+    {
+      "id": "dev_chain_b", "type": "WORLD_OBJECT", "progressionSource": "EXPLORATION",
+      "repeatability": "ONE_SHOT", "visibility": "SHARED", "actionId": 62006, "developmentFixture": true,
+      "text": "Development chain fragment B.", "placement": { "mode": "FIXED", "locationId": "dev_world_object_position" }, "rewards": []
+    },
+    {
+      "id": "dev_chain_c", "type": "PAGE", "progressionSource": "EXPLORATION",
+      "repeatability": "ONE_SHOT", "visibility": "PERSONAL", "personalObject": true, "actionId": 62007, "developmentFixture": true,
+      "text": "Development chain conclusion, available only after both fragments.",
+      "requirements": { "allOf": ["dev_chain_a", "dev_chain_b"] },
+      "placement": { "mode": "FIXED", "locationId": "dev_chain_position" },
+      "rewards": [{ "type": "SPELL_KNOWLEDGE", "spellId": 9001, "amount": 5 }]
+    }
+  ]
+}

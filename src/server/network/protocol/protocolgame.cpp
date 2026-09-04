@@ -52,6 +52,7 @@
 #include "server/network/protocol/transport_codec.hpp"
 #include "utils/tools.hpp"
 #include "creatures/players/vocations/vocation.hpp"
+#include "wizard/discovery/wizard_discovery_system.hpp"
 
 #include "enums/account_coins.hpp"
 #include "enums/account_group_type.hpp"
@@ -2138,6 +2139,7 @@ void ProtocolGame::GetCipsoft860TileDescription(const std::shared_ptr<Tile> &til
 	const TileItemVector* items = tile->getItemList();
 	if (items) {
 		for (auto it = items->getBeginTopItem(), end = items->getEndTopItem(); it != end; ++it) {
+			if (!WizardDiscoverySystem::isPersonalObjectVisible(player, *it, tile->getPosition())) continue;
 			AddItem(msg, *it);
 			if (++count == itemStackLimit) {
 				break;
@@ -2187,6 +2189,7 @@ void ProtocolGame::GetCipsoft860TileDescription(const std::shared_ptr<Tile> &til
 	}
 
 	for (auto it = ItemVector::const_reverse_iterator(items->getEndDownItem()), end = ItemVector::const_reverse_iterator(items->getBeginDownItem()); it != end; ++it) {
+		if (!WizardDiscoverySystem::isPersonalObjectVisible(player, *it, tile->getPosition())) continue;
 		AddItem(msg, *it);
 		if (++count == maxStackCount) {
 			return;
@@ -2216,6 +2219,7 @@ void ProtocolGame::GetTileDescription(const std::shared_ptr<Tile> &tile, Network
 	const TileItemVector* items = tile->getItemList();
 	if (items) {
 		for (auto it = items->getBeginTopItem(), end = items->getEndTopItem(); it != end; ++it) {
+			if (!WizardDiscoverySystem::isPersonalObjectVisible(player, *it, tile->getPosition())) continue;
 			AddItem(msg, *it);
 
 			count++;
@@ -2259,6 +2263,7 @@ void ProtocolGame::GetTileDescription(const std::shared_ptr<Tile> &tile, Network
 
 	if (items) {
 		for (auto it = items->getBeginDownItem(), end = items->getEndDownItem(); it != end; ++it) {
+			if (!WizardDiscoverySystem::isPersonalObjectVisible(player, *it, tile->getPosition())) continue;
 			AddItem(msg, *it);
 
 			if (++count == 10) {
@@ -8444,6 +8449,7 @@ void ProtocolGame::sendAddTileItem(const Position &pos, uint32_t stackpos, const
 	if (!canSee(pos)) {
 		return;
 	}
+	if (!WizardDiscoverySystem::isPersonalObjectVisible(player, item, pos)) return;
 
 	NetworkMessage msg;
 	msg.addByte(0x6A);
@@ -8455,6 +8461,10 @@ void ProtocolGame::sendAddTileItem(const Position &pos, uint32_t stackpos, const
 
 void ProtocolGame::sendUpdateTileItem(const Position &pos, uint32_t stackpos, const std::shared_ptr<Item> &item) {
 	if (!canSee(pos)) {
+		return;
+	}
+	if (!WizardDiscoverySystem::isPersonalObjectVisible(player, item, pos)) {
+		sendUpdateTile(item->getTile(), pos);
 		return;
 	}
 

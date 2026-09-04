@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <string>
 
+#include "wizard/progression/wizard_knowledge_types.hpp"
+
 enum class WizardTargetType {
 	TILE,
 	AREA,
@@ -50,6 +52,14 @@ struct WizardProjectileDefinition {
 	uint32_t travelTimeMs = 0;
 };
 
+struct WizardSpellProgressionDefinition {
+	uint16_t knowledgeRequired = 0;
+	uint16_t magicalKnowledgeRequired = 0;
+	WizardAcquisitionProfile acquisitionProfile = WizardAcquisitionProfile::ACADEMIC;
+	WizardKnowledgeSourceMask allowedKnowledgeSources = 0;
+	WizardKnowledgeSourceMask requiredKnowledgeSources = 0;
+};
+
 struct WizardSpellDefinition {
 	uint32_t id = 0;
 
@@ -77,6 +87,7 @@ struct WizardSpellDefinition {
 	uint16_t impactEffect = 0;
 	uint16_t difficulty = 0;
 	uint16_t requiredKnowledge = 0;
+	WizardSpellProgressionDefinition progression;
 
 	WizardAreaDefinition area;
 	WizardProjectileDefinition projectile;

@@ -1,4 +1,5 @@
 #include "wizard/skills/wizard_skill.hpp"
+#include "wizard/potions/wizard_recipe_progress.hpp"
 
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -15,6 +16,15 @@ TEST(WizardPersistenceTest, DefaultPlayerWizardValuesAreStable) {
 	EXPECT_EQ(progress.mastery, 0);
 	EXPECT_FALSE(progress.learned);
 	EXPECT_EQ(progress.uses, 0);
+	EXPECT_EQ(progress.masteryXp, 0);
+	EXPECT_EQ(progress.knowledgeSources, 0);
+
+	const WizardRecipeProgress recipe;
+	EXPECT_EQ(recipe.knowledge, 0);
+	EXPECT_EQ(recipe.mastery, 0);
+	EXPECT_EQ(recipe.masteryXp, 0);
+	EXPECT_EQ(recipe.brews, 0);
+	EXPECT_FALSE(recipe.learned);
 }
 
 TEST(WizardPersistenceTest, LoadedValuesClampToDomain) {
@@ -53,4 +63,40 @@ TEST(WizardPersistenceTest, SkillLimitsComeFromProgressionConfiguration) {
 	}
 
 	ASSERT_TRUE(config.load(productionPath, error)) << error;
+}
+
+TEST(WizardProgressionConfigTest, RejectsInvalidLimitsCurvesXpAndCaps) {
+	const auto productionPath = std::string(TESTS_SOURCE_DIR) + "/data/wizard/progression.json";
+	std::ifstream input(productionPath);
+	const auto valid = nlohmann::json::parse(input);
+	auto expectInvalid = [&](nlohmann::json json, const std::string &name) {
+		const auto path = std::filesystem::temp_directory_path() / ("wizard_invalid_" + name + ".json");
+		std::ofstream output(path);
+		output << json.dump();
+		output.close();
+		WizardProgressionConfig config;
+		std::string error;
+		EXPECT_FALSE(config.load(path.string(), error)) << name;
+		EXPECT_FALSE(error.empty()) << name;
+	};
+
+	auto invalid = valid;
+	invalid["knowledge"]["min"] = 80;
+	invalid["knowledge"]["max"] = 20;
+	expectInvalid(invalid, "limits");
+	invalid = valid;
+	invalid["spellMastery"]["bands"][0]["xpPerLevel"] = -1;
+	expectInvalid(invalid, "negative_xp");
+	invalid = valid;
+	invalid["spellMastery"]["bands"][1]["throughLevel"] = invalid["spellMastery"]["bands"][0]["throughLevel"];
+	expectInvalid(invalid, "overlap");
+	invalid = valid;
+	invalid["brewingMastery"]["bands"] = nlohmann::json::array();
+	expectInvalid(invalid, "missing_bands");
+	invalid = valid;
+	invalid["spellEffect"]["maxCombinedPotencyBonus"] = -0.01;
+	expectInvalid(invalid, "negative_cap");
+	invalid = valid;
+	invalid["potionEffect"]["maxCombinedBonus"] = 1.01;
+	expectInvalid(invalid, "oversized_cap");
 }

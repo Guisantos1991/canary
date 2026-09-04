@@ -85,3 +85,12 @@ TEST(WizardSpellRegistryTest, RejectsUnsupportedCustomArea) {
 	EXPECT_FALSE(registry.load(writeRegistry(json, "wizard_custom_area.json").string(), error));
 	EXPECT_NE(error.find("CUSTOM is unsupported"), std::string::npos) << error;
 }
+
+TEST(WizardSpellRegistryTest, RejectsInvalidKnowledgeSource) {
+	auto json = validRegistry();
+	json["spells"][0]["progression"]["allowedKnowledgeSources"] = { "READING", "COMBAT" };
+	WizardSpellRegistry registry;
+	std::string error;
+	EXPECT_FALSE(registry.load(writeRegistry(json, "wizard_invalid_knowledge_source.json").string(), error));
+	EXPECT_NE(error.find("invalid spell knowledge source"), std::string::npos) << error;
+}

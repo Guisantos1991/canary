@@ -8,6 +8,7 @@
 #include "wizard/combat/wizard_area_system.hpp"
 #include "wizard/spells/wizard_spell_caster.hpp"
 #include "wizard/spells/wizard_spell_registry.hpp"
+#include "wizard/progression/wizard_progression_config.hpp"
 
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -42,6 +43,8 @@ namespace {
 		}
 
 		static void SetUpTestSuite() {
+			std::string error;
+			ASSERT_TRUE(g_wizardProgression().load(std::string(TESTS_SOURCE_DIR) + "/data/wizard/progression.json", error)) << error;
 			std::ifstream input(std::string(TESTS_SOURCE_DIR) + "/data/wizard/spells.json");
 			auto json = nlohmann::json::parse(input);
 			auto &spell = json["spells"][0];
@@ -56,7 +59,6 @@ namespace {
 			std::ofstream output(path);
 			output << json.dump();
 			output.close();
-			std::string error;
 			ASSERT_TRUE(g_wizardSpells().load(path.string(), error)) << error;
 		}
 
@@ -70,6 +72,7 @@ namespace {
 			type->info.healthMax = 1000;
 			type->info.isAttackable = true;
 			auto monster = std::make_shared<Monster>(type);
+			monster->setHealthForTesting(1000, 1000);
 			if (!g_game().internalPlaceCreature(monster, tile->getPosition(), false, true)) {
 				ADD_FAILURE() << "Failed to place Wizard test monster";
 			}
@@ -139,6 +142,24 @@ TEST_F(WizardSpellCasterTest, NormalOffensiveCastOutsideProtectionZoneIsAllowed)
 	EXPECT_TRUE(WizardSpellCaster::cast(caster, 9001, targetPosition));
 	EXPECT_LT(caster->getMana(), 100);
 	EXPECT_EQ(caster->getWizardSpellProgress(9001)->uses, 1);
+	EXPECT_EQ(caster->getWizardSpellProgress(9001)->masteryXp, 0);
+}
+
+TEST_F(WizardSpellCasterTest, RealHitGrantsMasteryXpExactlyAfterImpact) {
+	auto target = addMonster(targetTile);
+	giveMana(100);
+	EXPECT_TRUE(WizardSpellCaster::cast(caster, 9001, targetPosition));
+	EXPECT_LT(target->getHealth(), target->getMaxHealth());
+	EXPECT_EQ(caster->getWizardSpellProgress(9001)->uses, 1);
+	EXPECT_EQ(caster->getWizardSpellProgress(9001)->masteryXp, 10);
+}
+
+TEST_F(WizardSpellCasterTest, EmptyOrDodgedImpactNeverGrantsMasteryXp) {
+	auto target = addMonster(targetTile);
+	auto dodgeTile = addTile(Position { static_cast<uint16_t>(targetPosition.x + 1), targetPosition.y, targetPosition.z });
+	g_game().map.moveCreature(target, dodgeTile, true);
+	WizardSpellCaster::impact(caster->getID(), 9001, targetPosition, DIRECTION_EAST, 50, 50, 50, 0);
+	EXPECT_EQ(caster->getWizardSpellProgress(9001)->masteryXp, 0);
 }
 
 TEST_F(WizardSpellCasterTest, InfiniteManaAllowsCastWithoutDeduction) {
@@ -152,6 +173,18 @@ TEST_F(WizardSpellCasterTest, InfiniteManaAllowsCastWithoutDeduction) {
 TEST_F(WizardSpellCasterTest, InsufficientManaRejectsNormalPlayer) {
 	EXPECT_FALSE(WizardSpellCaster::cast(caster, 9001, targetPosition));
 	EXPECT_EQ(caster->getWizardSpellProgress(9001)->uses, 0);
+	EXPECT_EQ(caster->getWizardSpellProgress(9001)->masteryXp, 0);
+}
+
+TEST_F(WizardSpellCasterTest, OutOfRangeAndRecoveryRejectionsGrantNoMasteryXp) {
+	giveMana(1000);
+	const Position outOfRange { static_cast<uint16_t>(casterPosition.x + 20), casterPosition.y, casterPosition.z };
+	addTile(outOfRange);
+	EXPECT_FALSE(WizardSpellCaster::cast(caster, 9001, outOfRange));
+	EXPECT_EQ(caster->getWizardSpellProgress(9001)->masteryXp, 0);
+	EXPECT_TRUE(WizardSpellCaster::cast(caster, 9001, targetPosition));
+	EXPECT_FALSE(WizardSpellCaster::cast(caster, 9001, targetPosition));
+	EXPECT_EQ(caster->getWizardSpellProgress(9001)->masteryXp, 0);
 }
 
 TEST_F(WizardSpellCasterTest, AffectedCountMatchesSingleAndAreaTargets) {

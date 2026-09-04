@@ -10,6 +10,8 @@
 #include "wizard/exhaustion/wizard_exhaustion_system.hpp"
 #include "wizard/mana/wizard_mana_system.hpp"
 #include "wizard/progression/wizard_progression_config.hpp"
+#include "wizard/progression/wizard_mastery_system.hpp"
+#include "wizard/progression/wizard_spell_effect_scaling_system.hpp"
 #include "wizard/spells/wizard_spell_registry.hpp"
 #include "wizard/spells/wizard_targeting_validator.hpp"
 
@@ -57,10 +59,11 @@ namespace {
 		return COMBAT_ENERGYDAMAGE;
 	}
 
-	int32_t calculateDamage(const WizardSpellDefinition &spell, const uint16_t magicalPower, const uint16_t skillCombat, const uint16_t mastery) {
+	int32_t calculateDamage(const WizardSpellDefinition &spell, const uint16_t magicalPower, const uint16_t magicalControl, const uint16_t skillCombat, const uint16_t mastery) {
 		const double powerScale = 0.5 + static_cast<double>(std::clamp<uint16_t>(magicalPower, 1, 100)) / 200.0;
-		const int32_t maximum = std::max(1, static_cast<int32_t>(std::floor(static_cast<double>(spell.maxPower) * powerScale)));
-		const int32_t rawMinimum = std::max(1, static_cast<int32_t>(std::floor(static_cast<double>(spell.minPower) * powerScale)));
+		const auto &effectConfig = g_wizardProgression().get().spellEffect;
+		const int32_t maximum = std::max(1, WizardSpellEffectScalingSystem::scalePotency(static_cast<int32_t>(std::floor(static_cast<double>(spell.maxPower) * powerScale)), magicalControl, mastery, effectConfig));
+		const int32_t rawMinimum = std::max(1, WizardSpellEffectScalingSystem::scalePotency(static_cast<int32_t>(std::floor(static_cast<double>(spell.minPower) * powerScale)), magicalControl, mastery, effectConfig));
 		const double stability = (static_cast<double>(std::clamp<uint16_t>(skillCombat, 1, 100)) + static_cast<double>(std::clamp<uint16_t>(mastery, 0, 100))) / 400.0;
 		const int32_t minimum = std::min(maximum, rawMinimum + static_cast<int32_t>(std::floor(static_cast<double>(maximum - rawMinimum) * stability)));
 		return normal_random(minimum, maximum);
@@ -167,10 +170,7 @@ bool WizardSpellCaster::cast(const std::shared_ptr<Player> &player, const uint32
 		return false;
 	}
 	const auto* progress = player->getWizardSpellProgress(spellId);
-	if (player->getWizardSkills().getMagicalKnowledge() < spell->requiredKnowledge || !progress || progress->knowledge < spell->difficulty) {
-		sendFailure(player, "You do not understand this spell yet.");
-		return false;
-	}
+	if (!progress) return false;
 
 	const Position resolvedTarget = spell->targetType == WizardTargetType::SELF ? player->getPosition() : targetPosition.value_or(Position {});
 	const auto tile = g_game().map.getTile(resolvedTarget);
@@ -265,25 +265,25 @@ void WizardSpellCaster::executeCast(const uint32_t playerId, const uint32_t spel
 	player->setWizardRecoveryUntil(now + WizardExhaustionSystem::calculateRecovery(spell->recoveryTimeMs, player->getWizardSkills().getMagicalControl(), progress.mastery, config.recovery));
 	player->setWizardCooldownUntil(spellId, now + spell->cooldownMs);
 	++progress.uses;
-	progress.mastery = std::min<uint16_t>(100, std::max<uint16_t>(progress.mastery, static_cast<uint16_t>(progress.uses / 10)));
 
 	if (spell->projectile.visualEffect != 0) {
 		g_game().addDistanceEffect(player->getPosition(), resolvedTarget, spell->projectile.visualEffect, player);
 	}
 	const auto power = player->getWizardSkills().getMagicalPower();
+	const auto control = player->getWizardSkills().getMagicalControl();
 	const auto combat = player->getWizardSkills().getSkillCombat();
 	const auto mastery = progress.mastery;
 	const auto direction = player->getDirection();
 	if (spell->projectile.travelTimeMs == 0) {
-		impact(playerId, spellId, resolvedTarget, direction, power, combat, mastery);
+		impact(playerId, spellId, resolvedTarget, direction, power, control, combat, mastery);
 	} else {
-		g_dispatcher().scheduleEvent(spell->projectile.travelTimeMs, [playerId, spellId, resolvedTarget, direction, power, combat, mastery] {
-			WizardSpellCaster::impact(playerId, spellId, resolvedTarget, direction, power, combat, mastery);
+		g_dispatcher().scheduleEvent(spell->projectile.travelTimeMs, [playerId, spellId, resolvedTarget, direction, power, control, combat, mastery] {
+			WizardSpellCaster::impact(playerId, spellId, resolvedTarget, direction, power, control, combat, mastery);
 		}, "WizardSpellCaster::impact");
 	}
 }
 
-void WizardSpellCaster::impact(const uint32_t playerId, const uint32_t spellId, const Position targetPosition, const Direction direction, const uint16_t magicalPower, const uint16_t skillCombat, const uint16_t mastery) {
+void WizardSpellCaster::impact(const uint32_t playerId, const uint32_t spellId, const Position targetPosition, const Direction direction, const uint16_t magicalPower, const uint16_t magicalControl, const uint16_t skillCombat, const uint16_t mastery) {
 	const auto player = g_game().getPlayerByID(playerId);
 	const auto* spell = g_wizardSpells().getById(spellId);
 	if (!player || !spell || spell->category != WizardSpellCategory::OFFENSIVE) {
@@ -297,15 +297,19 @@ void WizardSpellCaster::impact(const uint32_t playerId, const uint32_t spellId, 
 
 	const auto affectedTargets = collectImpactTargets(player, *spell, targetPosition, direction, magicalPower);
 	const auto affected = affectedTargets.size();
+	std::size_t effectivelyAffected = 0;
 	for (const auto &target : affectedTargets) {
 		CombatDamage damage;
 		damage.origin = ORIGIN_SPELL;
 		damage.primary.type = combatParams.combatType;
-		damage.primary.value = -calculateDamage(*spell, magicalPower, skillCombat, mastery);
+		damage.primary.value = -calculateDamage(*spell, magicalPower, magicalControl, skillCombat, mastery);
 		setAffectedCount(damage, affected);
 		damage.instantSpellName = spell->name;
+		const auto healthBefore = target->getHealth();
 		Combat::doCombatHealth(player, target, damage, combatParams);
+		if (target->getHealth() != healthBefore) ++effectivelyAffected;
 	}
+	if (effectivelyAffected > 0) WizardMasterySystem::grantMeaningfulUse(player, spellId, effectivelyAffected);
 }
 
 std::vector<std::shared_ptr<Creature>> WizardSpellCaster::collectImpactTargets(const std::shared_ptr<Player> &player, const WizardSpellDefinition &spell, const Position targetPosition, const Direction direction, const uint16_t magicalPower) {
